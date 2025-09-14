@@ -13,8 +13,8 @@ src/
 ├── gui/                 # Interfaz gráfica y visualización
 │   ├── ventanas.py      # Ventana principal de la GUI
 │   ├── graficos.py      # Funciones de visualización (histogramas, etc.)
-│   ├── styles.py        # (Pendiente) Estilos de la GUI
-│   ├── widgets.py       # (Pendiente) Widgets personalizados
+│   ├── styles.py        # Estilos de la GUI
+│   ├── widgets.py       # Widgets personalizados
 ├── main.py              # Punto de entrada principal
 ├── muestreo/            # Muestreo equilibrado
 ├── preprocesamiento/    # Carga y partición de datos
