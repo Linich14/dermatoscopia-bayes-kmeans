@@ -31,6 +31,6 @@ def estadisticas_rgb(imagenes):
             stats[clase][canal] = {
                 'media': float(np.mean(arr)) if arr.size > 0 else None,
                 'std': float(np.std(arr)) if arr.size > 0 else None,
-                'histograma': np.histogram(arr, bins=20, range=(0,1))[0].tolist() if arr.size > 0 else None
+                'histograma': np.histogram(arr, bins=20, range=(0,1))[0].tolist() if arr.size > 0 else [0]*20
             }
     return stats
