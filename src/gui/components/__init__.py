@@ -272,13 +272,14 @@ class ScrollableFrame(tk.Frame):
             **kwargs: Argumentos adicionales
         """
         super().__init__(parent, **kwargs)
+        self.configure(bg=COLORS['content_bg'])
         
         # Canvas para scroll
-        self.canvas = tk.Canvas(self, highlightthickness=0)
+        self.canvas = tk.Canvas(self, highlightthickness=0, bg=COLORS['content_bg'])
         self.scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
         
         # Frame scrollable
-        self.scrollable_frame = tk.Frame(self.canvas)
+        self.scrollable_frame = tk.Frame(self.canvas, bg=COLORS['content_bg'])
         self.scrollable_frame.bind(
             "<Configure>",
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))

@@ -31,7 +31,7 @@ class EvaluationDialog(tk.Toplevel):
         """
         super().__init__(parent)
         self.title("Resultados de Evaluación")
-        self.geometry("600x700")
+        self.geometry(f"{DESIGN['dialog_width']}x{DESIGN['dialog_height']}")
         self.configure(bg=COLORS['background'])
         
         self.metricas = metricas
@@ -107,7 +107,8 @@ class EvaluationDialog(tk.Toplevel):
     def _create_metrics_section(self, parent):
         """Crea la sección de métricas principales."""
         metrics_frame = RoundedContainer(parent, background=COLORS['card_bg'])
-        metrics_frame.pack(fill=tk.X, padx=20, pady=10)
+        metrics_frame.pack(fill=tk.X, padx=DESIGN['dialog_margin'], pady=10)
+        metrics_frame.configure(width=DESIGN['metrics_width'])
         
         content = metrics_frame.inner_frame
         
@@ -183,7 +184,7 @@ Real Lesión  {mc['TP']:6d}  {mc['FN']:6d}
                 font=('Segoe UI', 10),
                 fg=COLORS['text'],
                 bg=COLORS['accent_light'],
-                wraplength=500,
+                wraplength=DESIGN['dialog_content_width'],
                 justify=tk.LEFT).pack(pady=(0, 10), padx=10)
     
     def _generate_interpretation(self) -> str:
@@ -258,8 +259,9 @@ class ComparisonDialog(tk.Toplevel):
         """
         super().__init__(parent)
         self.title("Comparación de Criterios de Umbral")
-        self.geometry("900x800")
+        self.geometry(f"{DESIGN['dialog_width']}x{DESIGN['dialog_height']}")
         self.configure(bg=COLORS['background'])
+        self.minsize(650, 500)
         
         self.resultados = resultados
         
@@ -306,7 +308,8 @@ class ComparisonDialog(tk.Toplevel):
         bg_color = COLORS['accent_light'] if rank == 0 else COLORS['card_bg']
         
         criterion_frame = RoundedContainer(parent, background=bg_color)
-        criterion_frame.pack(fill=tk.X, padx=20, pady=10)
+        criterion_frame.pack(fill=tk.X, padx=DESIGN['dialog_margin'], pady=10)
+        criterion_frame.configure(width=DESIGN['info_card_width'])
         
         content = criterion_frame.inner_frame
         
@@ -337,7 +340,9 @@ Sensibilidad: {metricas['sensibilidad']:.3f} | Especificidad: {metricas['especif
                 font=('Consolas', 10),
                 fg=COLORS['text'],
                 bg=bg_color,
-                justify=tk.CENTER).pack(pady=5)
+                width=DESIGN['metrics_width']//8,
+                wraplength=DESIGN['metrics_width'],
+                justify=tk.LEFT).pack(pady=5, padx=10)
         
         # Justificación del criterio
         if 'justificacion' in resultado:
@@ -348,7 +353,7 @@ Sensibilidad: {metricas['sensibilidad']:.3f} | Especificidad: {metricas['especif
                     font=('Segoe UI', 9),
                     fg=COLORS['secondary'],
                     bg=bg_color,
-                    wraplength=800,
+                    wraplength=DESIGN['dialog_content_width'] - 40,
                     justify=tk.LEFT).pack(pady=(5, 10), padx=10)
     
     def _create_recommendation_section(self, parent, criterios_ordenados):
@@ -357,7 +362,8 @@ Sensibilidad: {metricas['sensibilidad']:.3f} | Especificidad: {metricas['especif
         mejor_resultado = criterios_ordenados[0][1]
         
         rec_frame = RoundedContainer(parent, background=COLORS['success'], highlightthickness=2, highlightbackground=COLORS['primary'])
-        rec_frame.pack(fill=tk.X, padx=20, pady=20)
+        rec_frame.pack(fill=tk.X, padx=DESIGN['dialog_margin'], pady=20)
+        rec_frame.configure(width=DESIGN['info_card_width'])
         
         content = rec_frame.inner_frame
         
@@ -367,25 +373,50 @@ Sensibilidad: {metricas['sensibilidad']:.3f} | Especificidad: {metricas['especif
                 fg='white',
                 bg=COLORS['success']).pack(pady=(10, 5))
         
-        rec_text = f"""CRITERIO RECOMENDADO: {mejor_criterio.upper()}
+        # Marco interno para el contenido con padding
+        inner_content = tk.Frame(content, bg=COLORS['success'])
+        inner_content.pack(fill=tk.X, padx=20, pady=5)
 
-Índice de Youden: {mejor_resultado['metricas']['youden']:.3f}
-Justificación: Este criterio ofrece el mejor balance entre sensibilidad y especificidad,
-maximizando la capacidad discriminativa del clasificador para aplicaciones médicas."""
+        # Título del criterio recomendado
+        tk.Label(inner_content,
+                text=f"CRITERIO RECOMENDADO: {mejor_criterio.upper()}",
+                font=('Segoe UI', 11, 'bold'),
+                fg='white',
+                bg=COLORS['success'],
+                anchor='w').pack(fill=tk.X, pady=(5, 10))
+
+        # Índice Youden
+        tk.Label(inner_content,
+                text=f"Índice de Youden: {mejor_resultado['metricas']['youden']:.3f}",
+                font=('Segoe UI', 10),
+                fg='white',
+                bg=COLORS['success'],
+                anchor='w').pack(fill=tk.X, pady=(0, 5))
+
+        # Justificación
+        tk.Label(inner_content,
+                text="Este criterio ofrece el mejor balance entre sensibilidad y especificidad, " + 
+                     "maximizando la capacidad discriminativa del clasificador para aplicaciones médicas.",
+                font=('Segoe UI', 10),
+                fg='white',
+                bg=COLORS['success'],
+                wraplength=DESIGN['dialog_content_width'] - 80,
+                justify=tk.LEFT,
+                anchor='w').pack(fill=tk.X, pady=(0, 10))
         
         if len(criterios_ordenados) > 1:
             segundo_criterio = criterios_ordenados[1][0]
             segundo_resultado = criterios_ordenados[1][1]
             diferencia = mejor_resultado['metricas']['youden'] - segundo_resultado['metricas']['youden']
-            rec_text += f"\\n\\nVentaja sobre {segundo_criterio}: +{diferencia:.3f} puntos en índice Youden"
-        
-        tk.Label(content,
-                text=rec_text,
-                font=('Segoe UI', 10),
-                fg='white',
-                bg=COLORS['success'],
-                wraplength=800,
-                justify=tk.LEFT).pack(pady=(0, 10), padx=15)
+            # Ventaja sobre segundo mejor
+            tk.Label(inner_content,
+                    text=f"Ventaja sobre {segundo_criterio}: +{diferencia:.3f} puntos en índice Youden",
+                    font=('Segoe UI', 10),
+                    fg='white',
+                    bg=COLORS['success'],
+                    wraplength=DESIGN['dialog_content_width'] - 80,
+                    justify=tk.LEFT,
+                    anchor='w').pack(fill=tk.X, pady=(5, 10))
     
     def _create_close_button(self):
         """Crea el botón de cerrar."""
@@ -444,8 +475,9 @@ class RGBvsPCADialog(tk.Toplevel):
         """
         super().__init__(parent)
         self.title("Comparación RGB vs PCA")
-        self.geometry("900x800")
+        self.geometry(f"{DESIGN['dialog_width']}x{DESIGN['dialog_height']}")
         self.configure(bg=COLORS['background'])
+        self.minsize(650, 500)
         
         self.comparacion = comparacion
         self.clasificador_pca = clasificador_pca
@@ -490,44 +522,58 @@ class RGBvsPCADialog(tk.Toplevel):
     def _create_pca_info_section(self, parent):
         """Crea la sección de información del PCA."""
         info_frame = RoundedContainer(parent, background=COLORS['accent_light'])
-        info_frame.pack(fill=tk.X, padx=20, pady=10)
+        info_frame.pack(fill=tk.X, padx=DESIGN['dialog_margin'], pady=10)
+        info_frame.configure(width=DESIGN['info_card_width'])
         
         content = info_frame.inner_frame
         
-        tk.Label(content,
+        # Frame interno para el contenido con padding
+        inner_content = tk.Frame(content, bg=COLORS['accent_light'])
+        inner_content.pack(fill=tk.X, padx=20, pady=5)
+        
+        tk.Label(inner_content,
                 text="🔬 Configuración PCA Aplicada",
                 font=('Segoe UI', 12, 'bold'),
                 fg=COLORS['primary'],
-                bg=COLORS['accent_light']).pack(pady=(10, 5))
+                bg=COLORS['accent_light'],
+                anchor='w').pack(fill=tk.X, pady=(10, 5))
         
         pca_info = self.comparacion['pca']
         
-        info_text = f"""
-Criterio de selección: {pca_info['criterio_seleccion'].upper()}
-Componentes seleccionados: {pca_info['dimensiones']} de 3 originales
-Varianza preservada: {pca_info['varianza_preservada']:.1%}
-Reducción dimensional: {((3 - pca_info['dimensiones']) / 3 * 100):.1f}%
-        """
+        # Crear etiquetas individuales para cada pieza de información
+        info_items = [
+            f"Criterio de selección: {pca_info['criterio_seleccion'].upper()}",
+            f"Componentes seleccionados: {pca_info['dimensiones']} de 3 originales",
+            f"Varianza preservada: {pca_info['varianza_preservada']:.1%}",
+            f"Reducción dimensional: {((3 - pca_info['dimensiones']) / 3 * 100):.1f}%"
+        ]
         
-        tk.Label(content,
-                text=info_text.strip(),
-                font=('Consolas', 10),
-                fg=COLORS['text'],
-                bg=COLORS['accent_light'],
-                justify=tk.LEFT).pack(pady=(0, 10))
+        for item in info_items:
+            tk.Label(inner_content,
+                    text=item,
+                    font=('Segoe UI', 10),
+                    fg=COLORS['text'],
+                    bg=COLORS['accent_light'],
+                    anchor='w').pack(fill=tk.X, pady=2)
     
     def _create_comparison_table(self, parent):
         """Crea tabla de comparación de métricas."""
         table_frame = RoundedContainer(parent, background=COLORS['card_bg'])
-        table_frame.pack(fill=tk.X, padx=20, pady=10)
+        table_frame.pack(fill=tk.X, padx=DESIGN['dialog_margin'], pady=10)
+        table_frame.configure(width=DESIGN['info_card_width'])
         
         content = table_frame.inner_frame
         
-        tk.Label(content,
+        # Frame interno para contenido con padding
+        inner_content = tk.Frame(content, bg=COLORS['card_bg'])
+        inner_content.pack(fill=tk.X, padx=20, pady=5)
+        
+        tk.Label(inner_content,
                 text="📊 Comparación de Rendimiento",
                 font=('Segoe UI', 12, 'bold'),
                 fg=COLORS['primary'],
-                bg=COLORS['card_bg']).pack(pady=(10, 5))
+                bg=COLORS['card_bg'],
+                anchor='w').pack(fill=tk.X, pady=(10, 5))
         
         # Crear tabla
         pca_metricas = self.comparacion['pca']['metricas']
@@ -546,46 +592,85 @@ Reducción dimensional: {((3 - pca_info['dimensiones']) / 3 * 100):.1f}%
 {'Youden':<15} {rgb_metricas['youden']:<10.4f} {pca_metricas['youden']:<10.4f} {diferencias['youden']:+.4f}{'':4} {'PCA' if diferencias['youden'] > 0 else 'RGB'}
         """
         
-        tk.Label(content,
+        tk.Label(inner_content,
                 text=table_text.strip(),
                 font=('Consolas', 9),
                 fg=COLORS['text'],
                 bg=COLORS['card_bg'],
-                justify=tk.LEFT).pack(pady=(0, 10))
+                justify=tk.LEFT,
+                anchor='w').pack(fill=tk.X, pady=(5, 10))
     
     def _create_pca_justification_section(self, parent):
         """Crea la sección de justificación PCA."""
+        # Crear contenedor principal que se expande
         just_frame = RoundedContainer(parent, background=COLORS['card_bg'])
-        just_frame.pack(fill=tk.X, padx=20, pady=10)
+        just_frame.pack(fill=tk.BOTH, expand=True, padx=DESIGN['dialog_margin'], pady=10)
         
         content = just_frame.inner_frame
+        content.pack_configure(fill=tk.BOTH, expand=True)
         
+        # Título de la sección
         tk.Label(content,
                 text="📄 Justificación Metodológica PCA",
                 font=('Segoe UI', 12, 'bold'),
                 fg=COLORS['primary'],
-                bg=COLORS['card_bg']).pack(pady=(10, 5))
+                bg=COLORS['card_bg'],
+                anchor='w').pack(fill=tk.X, padx=20, pady=(10, 5))
         
         # Obtener justificación del clasificador PCA
         if hasattr(self.clasificador_pca, 'obtener_justificacion_pca'):
             justificacion = self.clasificador_pca.obtener_justificacion_pca()
         else:
             justificacion = "Justificación no disponible"
+
+        # Marco scrollable para la justificación
+        canvas = tk.Canvas(content, 
+                         bg=COLORS['background'],
+                         highlightthickness=0)
+        scrollbar = ttk.Scrollbar(content, 
+                                orient="vertical", 
+                                command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, 
+                                  bg=COLORS['background'])
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), 
+                           window=scrollable_frame, 
+                           anchor="nw",
+                           width=DESIGN['dialog_content_width'] - 60)
+
+        canvas.configure(yscrollcommand=scrollbar.set)
         
-        # Mostrar en texto scrollable
-        text_widget = tk.Text(content,
-                             height=10,
-                             width=80,
-                             font=('Consolas', 9),
-                             bg=COLORS['background'],
-                             fg=COLORS['text'],
-                             wrap=tk.WORD,
-                             state=tk.DISABLED)
-        
-        text_widget.config(state=tk.NORMAL)
-        text_widget.insert(tk.END, justificacion)
-        text_widget.config(state=tk.DISABLED)
-        text_widget.pack(pady=(0, 10), padx=10)
+        # Marco con borde para el contenido
+        text_frame = tk.Frame(scrollable_frame,
+                            bg=COLORS['background'],
+                            highlightbackground=COLORS['border'],
+                            highlightthickness=1)
+        text_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
+
+        # Separar y mostrar cada sección del texto
+        sections = justificacion.split('\n')
+        for section in sections:
+            if section.strip():
+                tk.Label(text_frame,
+                        text=section.strip(),
+                        font=('Segoe UI', 10),
+                        fg=COLORS['text'],
+                        bg=COLORS['background'],
+                        wraplength=DESIGN['dialog_content_width'] - 120,
+                        justify=tk.LEFT,
+                        anchor='w',
+                        padx=15,
+                        pady=3).pack(fill=tk.X)
+
+        # Empaquetar canvas y scrollbar
+        canvas.pack(side="left", fill="both", expand=True, padx=(20,0))
+        scrollbar.pack(side="right", fill="y", padx=(0,20))
+
     
     def _create_recommendation_section(self, parent):
         """Crea la sección de recomendación final."""

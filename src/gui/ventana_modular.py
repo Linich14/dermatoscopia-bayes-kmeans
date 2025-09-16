@@ -112,7 +112,7 @@ class VentanaPrincipalModular(tk.Tk):
     def _create_sidebar(self, parent):
         """Crea el panel lateral con controles."""
         # Contenedor principal del sidebar
-        sidebar_container = tk.Frame(parent, bg=COLORS['background'], width=220)
+        sidebar_container = tk.Frame(parent, **STYLES['sidebar'])
         sidebar_container.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
         sidebar_container.pack_propagate(False)
         
@@ -150,8 +150,8 @@ class VentanaPrincipalModular(tk.Tk):
                               command=lambda v=value: self._select_area(v),
                               background=color,
                               activebackground=COLORS['primary_dark'],
-                              width=180,
-                              height=35,
+                              width=DESIGN['content_width'] - 40,  # -40 para el padding
+                              height=DESIGN['button_height'],
                               variable=self.area_var,
                               value=value)
             btn.pack(pady=5, padx=10)
@@ -178,8 +178,8 @@ class VentanaPrincipalModular(tk.Tk):
                               command=lambda v=value: self._select_channel(v),
                               background=color,
                               activebackground=COLORS['primary_dark'],
-                              width=180,
-                              height=35,
+                              width=DESIGN['content_width'] - 40,  # -40 para el padding
+                              height=DESIGN['button_height'],
                               variable=self.canal_var,
                               value=value)
             btn.pack(pady=5, padx=10)
