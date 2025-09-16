@@ -4,7 +4,7 @@ Moderna interfaz tipo dashboard para análisis de imágenes dermatoscópicas.
 """
 
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import ttk, filedialog, messagebox
 import numpy as np
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -205,12 +205,13 @@ class RoundedButton(tk.Canvas):
         return self.create_polygon(points, smooth=True, **kwargs)
 
 class VentanaPrincipal(tk.Tk):
-    def __init__(self, stats_rgb):
+    def __init__(self, stats_rgb, clasificador=None):
         super().__init__()
         self.title("Análisis Dermatoscópico")
-        self.geometry("1280x800")
+        self.geometry("1280x900")  # Aumentar altura
         self.configure(**STYLES['root'])
         self.stats_rgb = stats_rgb
+        self.clasificador = clasificador
         
         # Variables de control
         self.area_var = tk.StringVar(value='lesion')
@@ -250,26 +251,57 @@ class VentanaPrincipal(tk.Tk):
         title.place(relx=0.5, rely=0.5, anchor='center')  # Centra el título vertical y horizontalmente
     
     def _crear_sidebar(self, parent):
-        """Crea el panel lateral con controles"""
-        sidebar = RoundedContainer(parent, **STYLES['sidebar'])
-        sidebar.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
+        """Crea el panel lateral con controles y scroll"""
+        # Contenedor principal del sidebar
+        sidebar_main = tk.Frame(parent, bg=COLORS['background'], width=200)
+        sidebar_main.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
+        sidebar_main.pack_propagate(False)
         
-        content_frame = sidebar.inner_frame
+        # Canvas para scroll
+        canvas = tk.Canvas(sidebar_main, bg=COLORS['background'], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(sidebar_main, orient="vertical", command=canvas.yview)
+        
+        # Frame scrollable
+        scrollable_frame = tk.Frame(canvas, bg=COLORS['background'])
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Empaquetar canvas y scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Usar scrollable_frame como content_frame
+        content_frame = scrollable_frame
+        
+        # Bind del scroll del mouse
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        def _bind_to_mousewheel(event):
+            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        def _unbind_from_mousewheel(event):
+            canvas.unbind_all("<MouseWheel>")
+        
+        canvas.bind('<Enter>', _bind_to_mousewheel)
+        canvas.bind('<Leave>', _unbind_from_mousewheel)
         
         # Grupo: Área de análisis
-        area_container = RoundedContainer(content_frame, background=COLORS['rosita'], height=DESIGN['container_height'])
-        area_container.pack(fill=tk.X, padx=1, pady=1)
-        area_container.pack_propagate(False)  # Evita que el contenedor se ajuste al contenido
+        area_frame = tk.LabelFrame(content_frame, 
+                                  text="Área de análisis",
+                                  bg=COLORS['background'],
+                                  fg=COLORS['text'],
+                                  font=('Segoe UI', 9, 'bold'),
+                                  relief='groove',
+                                  bd=1)
+        area_frame.pack(fill=tk.X, padx=5, pady=5)
         
-        area_frame = area_container.inner_frame
-        
-        tk.Label(area_frame,
-                text="Área de análisis",
-                font=('Segoe UI', 9, 'bold'),
-                fg=COLORS['text'],
-                bg=COLORS['background']).pack(fill=tk.X, padx=2, pady=(2,1))
-        
-        # Botones de área con menos espacio
+        # Botones de área
         btn_sana = RoundedButton(area_frame,
                               text="Sana ✅",
                               command=lambda: self._select_area('sana'),
@@ -281,7 +313,7 @@ class VentanaPrincipal(tk.Tk):
                               height=DESIGN['button_height'],
                               variable=self.area_var,
                               value='sana')
-        btn_sana.pack(pady=1)
+        btn_sana.pack(pady=3, padx=5)
         
         btn_lesion = RoundedButton(area_frame,
                                 text="Lesión ⚠️",
@@ -294,20 +326,17 @@ class VentanaPrincipal(tk.Tk):
                                 height=DESIGN['button_height'],
                                 variable=self.area_var,
                                 value='lesion')
-        btn_lesion.pack(pady=1)
+        btn_lesion.pack(pady=3, padx=5)
         
         # Grupo: Canal de color
-        canal_container = RoundedContainer(content_frame, background=COLORS['rosita'], height=DESIGN['container_height'] + 30)  # Más alto para 3 botones
-        canal_container.pack(fill=tk.X, padx=1, pady=1)
-        canal_container.pack_propagate(False)  # Evita que el contenedor se ajuste al contenido
-        
-        canal_frame = canal_container.inner_frame
-        
-        tk.Label(canal_frame,
-                text="Canal de color",
-                font=('Segoe UI', 9, 'bold'),
-                fg=COLORS['text'],
-                bg=COLORS['background']).pack(fill=tk.X, padx=2, pady=(2,1))
+        canal_frame = tk.LabelFrame(content_frame,
+                                   text="Canal de color",
+                                   bg=COLORS['background'],
+                                   fg=COLORS['text'],
+                                   font=('Segoe UI', 9, 'bold'),
+                                   relief='groove',
+                                   bd=1)
+        canal_frame.pack(fill=tk.X, padx=5, pady=5)
         
         # Botones de canal
         canales = [
@@ -328,20 +357,17 @@ class VentanaPrincipal(tk.Tk):
                             height=DESIGN['button_height'],
                             variable=self.canal_var,
                             value=canal)
-            btn.pack(pady=1)
+            btn.pack(pady=3, padx=5)
         
-        # Botones de acción en un contenedor redondeado
-        actions_container = RoundedContainer(content_frame, background=COLORS['rosita'], height=DESIGN['container_height'])
-        actions_container.pack(fill=tk.X, padx=1, pady=1)
-        actions_container.pack_propagate(False)  # Evita que el contenedor se ajuste al contenido
-        
-        actions_frame = actions_container.inner_frame
-        
-        tk.Label(actions_frame,
-                text="Acciones",
-                font=('Segoe UI', 9, 'bold'),
-                fg=COLORS['text'],
-                bg=COLORS['background']).pack(fill=tk.X, padx=2, pady=(2,1))
+        # Grupo: Acciones
+        actions_frame = tk.LabelFrame(content_frame,
+                                     text="Acciones",
+                                     bg=COLORS['background'],
+                                     fg=COLORS['text'],
+                                     font=('Segoe UI', 9, 'bold'),
+                                     relief='groove',
+                                     bd=1)
+        actions_frame.pack(fill=tk.X, padx=5, pady=5)
         
         reset_btn = RoundedButton(actions_frame,
                                text="Reiniciar valores 🔄",
@@ -352,7 +378,90 @@ class VentanaPrincipal(tk.Tk):
                                activeforeground='white',
                                width=170,
                                height=DESIGN['button_height'])
-        reset_btn.pack(pady=1)
+        reset_btn.pack(pady=3, padx=5)
+        
+        # Grupo: Clasificador Bayesiano
+        bayes_frame = tk.LabelFrame(content_frame,
+                                   text="Clasificador Bayesiano RGB",
+                                   bg=COLORS['background'],
+                                   fg=COLORS['text'],
+                                   font=('Segoe UI', 9, 'bold'),
+                                   relief='groove',
+                                   bd=1)
+        bayes_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Variables de control para clasificador
+        self.criterio_var = tk.StringVar(value='youden')
+        self.clasificador_entrenado = False
+        self.progreso_var = tk.StringVar(value="No entrenado")
+        
+        # Dropdown para criterio de umbral
+        tk.Label(bayes_frame,
+                text="Criterio de umbral:",
+                font=('Segoe UI', 8),
+                fg=COLORS['text'],
+                bg=COLORS['background']).pack(fill=tk.X, padx=5, pady=(5,0))
+        
+        criterio_combo = ttk.Combobox(bayes_frame,
+                                     textvariable=self.criterio_var,
+                                     values=['youden', 'equal_error', 'prior_balanced'],
+                                     state='readonly',
+                                     font=('Segoe UI', 8))
+        criterio_combo.pack(fill=tk.X, padx=5, pady=2)
+        
+        # Label de estado
+        self.estado_label = tk.Label(bayes_frame,
+                                    textvariable=self.progreso_var,
+                                    font=('Segoe UI', 8),
+                                    fg=COLORS['text'],
+                                    bg=COLORS['background'],
+                                    wraplength=160)
+        self.estado_label.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Botones de clasificador con más espacio
+        entrenar_btn = RoundedButton(bayes_frame,
+                                   text="Entrenar Clasificador 🤖",
+                                   command=self._entrenar_clasificador,
+                                   background=COLORS['accent'],
+                                   activebackground='#E67E22',
+                                   foreground='white',
+                                   activeforeground='white',
+                                   width=170,
+                                   height=25)
+        entrenar_btn.pack(pady=3, padx=5)
+        
+        evaluar_btn = RoundedButton(bayes_frame,
+                                  text="Evaluar Modelo 📊",
+                                  command=self._evaluar_clasificador,
+                                  background=COLORS['secondary'],
+                                  activebackground='#117A65',
+                                  foreground='white',
+                                  activeforeground='white',
+                                  width=170,
+                                  height=25)
+        evaluar_btn.pack(pady=3, padx=5)
+        
+        comparar_btn = RoundedButton(bayes_frame,
+                                   text="Comparar Criterios ⚖️",
+                                   command=self._comparar_criterios,
+                                   background='#8E44AD',
+                                   activebackground='#7D3C98',
+                                   foreground='white',
+                                   activeforeground='white',
+                                   width=170,
+                                   height=25)
+        comparar_btn.pack(pady=3, padx=5)
+        
+        clasificar_btn = RoundedButton(bayes_frame,
+                                     text="Clasificar Imagen 🖼️",
+                                     command=self._clasificar_imagen,
+                                     background='#E74C3C',
+                                     activebackground='#C0392B',
+                                     foreground='white',
+                                     activeforeground='white',
+                                     width=170,
+                                     height=25)
+        clasificar_btn.pack(pady=3, padx=5)
     
     def _crear_area_principal(self, parent):
         """Crea el área principal con el gráfico"""
@@ -508,3 +617,460 @@ class VentanaPrincipal(tk.Tk):
                     fg=COLORS['text'],
                     bg=COLORS['card_bg'],
                     font=('Segoe UI', 12)).pack(pady=20)
+    
+    def _entrenar_clasificador(self):
+        """Entrena el clasificador bayesiano con el criterio seleccionado"""
+        import threading
+        from clasificadores.clasificador_bayesiano import ClasificadorBayesianoRGB
+        from preprocesamiento.carga import cargar_imagenes_y_mascaras
+        from preprocesamiento.particion import particionar_datos
+        
+        def entrenar_en_hilo():
+            try:
+                self.progreso_var.set("Cargando datos...")
+                self.update()
+                
+                # Cargar y particionar datos
+                imagenes = cargar_imagenes_y_mascaras()
+                self.train, self.val, self.test = particionar_datos(imagenes)
+                
+                self.progreso_var.set("Entrenando...")
+                self.update()
+                
+                # Crear y entrenar clasificador
+                criterio = self.criterio_var.get()
+                self.clasificador = ClasificadorBayesianoRGB(criterio_umbral=criterio)
+                self.clasificador.entrenar(self.train)
+                
+                self.clasificador_entrenado = True
+                parametros = self.clasificador.obtener_parametros()
+                
+                self.progreso_var.set(f"✅ Entrenado\nCriterio: {criterio}\nUmbral: {parametros['umbral']:.4f}")
+                
+            except Exception as e:
+                self.progreso_var.set(f"❌ Error: {str(e)[:30]}...")
+        
+        # Ejecutar en hilo separado para no bloquear GUI
+        thread = threading.Thread(target=entrenar_en_hilo)
+        thread.daemon = True
+        thread.start()
+    
+    def _evaluar_clasificador(self):
+        """Evalúa el clasificador entrenado y muestra resultados"""
+        if not hasattr(self, 'clasificador') or not self.clasificador_entrenado:
+            self._mostrar_mensaje_error("Debe entrenar el clasificador primero")
+            return
+        
+        import threading
+        from clasificadores.evaluacion import evaluar_clasificador_en_conjunto
+        
+        def evaluar_en_hilo():
+            try:
+                self.progreso_var.set("Evaluando en test...")
+                self.update()
+                
+                # Evaluar en conjunto de test
+                metricas = evaluar_clasificador_en_conjunto(self.clasificador, self.test)
+                
+                # Mostrar ventana de resultados
+                self._mostrar_resultados_evaluacion(metricas)
+                
+                self.progreso_var.set("✅ Evaluación completa")
+                
+            except Exception as e:
+                self.progreso_var.set(f"❌ Error: {str(e)[:30]}...")
+                self._mostrar_mensaje_error(f"Error en evaluación: {e}")
+        
+        thread = threading.Thread(target=evaluar_en_hilo)
+        thread.daemon = True
+        thread.start()
+    
+    def _comparar_criterios(self):
+        """Compara diferentes criterios de umbral"""
+        import threading
+        from clasificadores.evaluacion import comparar_criterios_umbral
+        
+        def comparar_en_hilo():
+            try:
+                self.progreso_var.set("Comparando criterios...")
+                self.update()
+                
+                # Cargar datos si no están cargados
+                if not hasattr(self, 'train'):
+                    from preprocesamiento.carga import cargar_imagenes_y_mascaras
+                    from preprocesamiento.particion import particionar_datos
+                    imagenes = cargar_imagenes_y_mascaras()
+                    self.train, self.val, self.test = particionar_datos(imagenes)
+                
+                # Comparar criterios
+                resultados = comparar_criterios_umbral(self.train, self.val)
+                
+                # Mostrar ventana de comparación
+                self._mostrar_comparacion_criterios(resultados)
+                
+                self.progreso_var.set("✅ Comparación completa")
+                
+            except Exception as e:
+                self.progreso_var.set(f"❌ Error: {str(e)[:30]}...")
+                self._mostrar_mensaje_error(f"Error en comparación: {e}")
+        
+        thread = threading.Thread(target=comparar_en_hilo)
+        thread.daemon = True
+        thread.start()
+    
+    def _clasificar_imagen(self):
+        """Permite al usuario seleccionar una imagen y la clasifica"""
+        if not hasattr(self, 'clasificador') or not self.clasificador_entrenado:
+            self._mostrar_mensaje_error("Debe entrenar el clasificador primero")
+            return
+        
+        from tkinter import filedialog
+        import cv2
+        from PIL import Image
+        
+        # Seleccionar archivo de imagen
+        archivo = filedialog.askopenfilename(
+            title="Seleccionar imagen para clasificar",
+            filetypes=[
+                ("Imágenes", "*.jpg *.jpeg *.png *.bmp *.tiff"),
+                ("Todos los archivos", "*.*")
+            ]
+        )
+        
+        if not archivo:
+            return
+        
+        try:
+            # Cargar y normalizar imagen
+            imagen = cv2.imread(archivo)
+            if imagen is None:
+                self._mostrar_mensaje_error("No se pudo cargar la imagen seleccionada")
+                return
+            
+            imagen_rgb = cv2.cvtColor(imagen, cv2.COLOR_BGR2RGB)
+            imagen_norm = imagen_rgb.astype(np.float32) / 255.0
+            
+            # Clasificar imagen
+            self.progreso_var.set("Clasificando imagen...")
+            self.update()
+            
+            mascara_pred = self.clasificador.clasificar(imagen_norm)
+            
+            # Mostrar resultado
+            self._mostrar_resultado_clasificacion(imagen_rgb, mascara_pred, archivo)
+            
+            self.progreso_var.set("✅ Clasificación completa")
+            
+        except Exception as e:
+            self._mostrar_mensaje_error(f"Error al clasificar imagen: {e}")
+            self.progreso_var.set("❌ Error en clasificación")
+    
+    def _mostrar_resultados_evaluacion(self, metricas):
+        """Muestra ventana con resultados de evaluación"""
+        ventana = tk.Toplevel(self)
+        ventana.title("Resultados de Evaluación")
+        ventana.geometry("500x400")
+        ventana.configure(bg=COLORS['background'])
+        
+        # Frame principal con scroll
+        main_frame = tk.Frame(ventana, bg=COLORS['background'])
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Título
+        tk.Label(main_frame,
+                text="📊 Resultados de Evaluación",
+                font=('Segoe UI', 14, 'bold'),
+                fg=COLORS['text'],
+                bg=COLORS['background']).pack(pady=(0, 10))
+        
+        # Métricas principales
+        metricas_frame = RoundedContainer(main_frame, background=COLORS['card_bg'])
+        metricas_frame.pack(fill=tk.X, pady=5)
+        
+        contenido = metricas_frame.inner_frame
+        
+        metricas_texto = f"""
+Exactitud: {metricas['exactitud']:.4f} ({metricas['exactitud']*100:.1f}%)
+Precisión: {metricas['precision']:.4f} ({metricas['precision']*100:.1f}%)
+Sensibilidad: {metricas['sensibilidad']:.4f} ({metricas['sensibilidad']*100:.1f}%)
+Especificidad: {metricas['especificidad']:.4f} ({metricas['especificidad']*100:.1f}%)
+F1-Score: {metricas['f1_score']:.4f}
+Índice Jaccard: {metricas['jaccard']:.4f}
+Índice Youden: {metricas['youden']:.4f}
+        """
+        
+        tk.Label(contenido,
+                text=metricas_texto.strip(),
+                font=('Consolas', 10),
+                fg=COLORS['text'],
+                bg=COLORS['card_bg'],
+                justify=tk.LEFT).pack(padx=10, pady=10)
+        
+        # Matriz de confusión
+        matriz_frame = RoundedContainer(main_frame, background=COLORS['card_bg'])
+        matriz_frame.pack(fill=tk.X, pady=5)
+        
+        tk.Label(matriz_frame.inner_frame,
+                text="Matriz de Confusión",
+                font=('Segoe UI', 11, 'bold'),
+                fg=COLORS['text'],
+                bg=COLORS['card_bg']).pack(pady=(10, 5))
+        
+        mc = metricas['matriz_confusion']
+        matriz_texto = f"""
+        Predicción
+        Lesión    Sana
+Real Lesión  {mc['TP']:6d}  {mc['FN']:6d}
+     Sana    {mc['FP']:6d}  {mc['TN']:6d}
+        """
+        
+        tk.Label(matriz_frame.inner_frame,
+                text=matriz_texto.strip(),
+                font=('Consolas', 9),
+                fg=COLORS['text'],
+                bg=COLORS['card_bg'],
+                justify=tk.CENTER).pack(padx=10, pady=(0, 10))
+    
+    def _mostrar_comparacion_criterios(self, resultados):
+        """Muestra ventana con comparación de criterios"""
+        ventana = tk.Toplevel(self)
+        ventana.title("Comparación de Criterios")
+        ventana.geometry("700x500")
+        ventana.configure(bg=COLORS['background'])
+        
+        # Frame con scroll
+        canvas = tk.Canvas(ventana, bg=COLORS['background'])
+        scrollbar = ttk.Scrollbar(ventana, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg=COLORS['background'])
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Título
+        tk.Label(scrollable_frame,
+                text="⚖️ Comparación de Criterios de Umbral",
+                font=('Segoe UI', 14, 'bold'),
+                fg=COLORS['text'],
+                bg=COLORS['background']).pack(pady=(10, 20))
+        
+        # Crear tarjeta para cada criterio
+        for criterio, resultado in resultados.items():
+            # Frame del criterio
+            criterio_frame = RoundedContainer(scrollable_frame, background=COLORS['card_bg'])
+            criterio_frame.pack(fill=tk.X, padx=20, pady=10)
+            
+            contenido = criterio_frame.inner_frame
+            
+            # Título del criterio
+            tk.Label(contenido,
+                    text=f"🎯 {criterio.upper()}",
+                    font=('Segoe UI', 12, 'bold'),
+                    fg=COLORS['primary'],
+                    bg=COLORS['card_bg']).pack(pady=(10, 5))
+            
+            # Umbral
+            tk.Label(contenido,
+                    text=f"Umbral: {resultado['umbral']:.6f}",
+                    font=('Segoe UI', 10),
+                    fg=COLORS['text'],
+                    bg=COLORS['card_bg']).pack()
+            
+            # Métricas
+            metricas = resultado['metricas']
+            metricas_texto = f"""Exactitud: {metricas['exactitud']:.4f} | Youden: {metricas['youden']:.4f}
+Sensibilidad: {metricas['sensibilidad']:.4f} | Especificidad: {metricas['especificidad']:.4f}
+Jaccard: {metricas['jaccard']:.4f}"""
+            
+            tk.Label(contenido,
+                    text=metricas_texto,
+                    font=('Consolas', 9),
+                    fg=COLORS['text'],
+                    bg=COLORS['card_bg'],
+                    justify=tk.CENTER).pack(pady=(5, 10))
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Encontrar mejor criterio
+        mejor_criterio = max(resultados.keys(), 
+                           key=lambda x: resultados[x]['metricas']['youden'])
+        
+        # Mostrar recomendación
+        recom_frame = tk.Frame(ventana, bg=COLORS['background'])
+        recom_frame.pack(fill=tk.X, padx=20, pady=10)
+        
+        tk.Label(recom_frame,
+                text=f"🏆 Recomendado: {mejor_criterio.upper()}",
+                font=('Segoe UI', 11, 'bold'),
+                fg=COLORS['accent'],
+                bg=COLORS['background']).pack()
+    
+    def _mostrar_mensaje_error(self, mensaje):
+        """Muestra un mensaje de error en una ventana emergente"""
+        ventana = tk.Toplevel(self)
+        ventana.title("Error")
+        ventana.geometry("400x150")
+        ventana.configure(bg=COLORS['background'])
+        
+        tk.Label(ventana,
+                text="❌ Error",
+                font=('Segoe UI', 12, 'bold'),
+                fg='red',
+                bg=COLORS['background']).pack(pady=10)
+        
+        tk.Label(ventana,
+                text=mensaje,
+                font=('Segoe UI', 10),
+                fg=COLORS['text'],
+                bg=COLORS['background'],
+                wraplength=350).pack(pady=10)
+        
+        tk.Button(ventana,
+                 text="Cerrar",
+                 command=ventana.destroy,
+                 bg=COLORS['primary'],
+                 fg='white',
+                 font=('Segoe UI', 9)).pack(pady=10)
+    
+    def _mostrar_resultado_clasificacion(self, imagen_original, mascara_pred, nombre_archivo):
+        """Muestra ventana con resultado de clasificación de imagen"""
+        import os
+        
+        ventana = tk.Toplevel(self)
+        ventana.title(f"Resultado Clasificación - {os.path.basename(nombre_archivo)}")
+        ventana.geometry("900x600")
+        ventana.configure(bg=COLORS['background'])
+        
+        # Frame principal
+        main_frame = tk.Frame(ventana, bg=COLORS['background'])
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Título
+        tk.Label(main_frame,
+                text=f"🎯 Resultado de Clasificación",
+                font=('Segoe UI', 14, 'bold'),
+                fg=COLORS['text'],
+                bg=COLORS['background']).pack(pady=(0, 10))
+        
+        # Frame para las imágenes
+        images_frame = tk.Frame(main_frame, bg=COLORS['background'])
+        images_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Crear figura con subplots
+        fig = Figure(figsize=(12, 8), dpi=80)
+        fig.patch.set_facecolor(COLORS['background'])
+        
+        # Imagen original
+        ax1 = fig.add_subplot(2, 2, 1)
+        ax1.imshow(imagen_original)
+        ax1.set_title("Imagen Original", fontsize=12, fontweight='bold')
+        ax1.axis('off')
+        
+        # Máscara predicha
+        ax2 = fig.add_subplot(2, 2, 2)
+        ax2.imshow(mascara_pred, cmap='hot', alpha=0.8)
+        ax2.set_title("Máscara Predicha\n(Rojo = Lesión)", fontsize=12, fontweight='bold')
+        ax2.axis('off')
+        
+        # Imagen con superposición
+        ax3 = fig.add_subplot(2, 2, 3)
+        ax3.imshow(imagen_original)
+        ax3.imshow(mascara_pred, cmap='Reds', alpha=0.5)
+        ax3.set_title("Superposición", fontsize=12, fontweight='bold')
+        ax3.axis('off')
+        
+        # Estadísticas
+        ax4 = fig.add_subplot(2, 2, 4)
+        ax4.axis('off')
+        
+        # Calcular estadísticas de la clasificación
+        total_pixels = mascara_pred.size
+        lesion_pixels = np.sum(mascara_pred)
+        sana_pixels = total_pixels - lesion_pixels
+        
+        porcentaje_lesion = (lesion_pixels / total_pixels) * 100
+        porcentaje_sana = (sana_pixels / total_pixels) * 100
+        
+        stats_text = f"""
+ESTADÍSTICAS DE CLASIFICACIÓN
+
+Total de píxeles: {total_pixels:,}
+
+Píxeles de lesión: {lesion_pixels:,}
+Porcentaje lesión: {porcentaje_lesion:.2f}%
+
+Píxeles sanos: {sana_pixels:,}
+Porcentaje sano: {porcentaje_sana:.2f}%
+
+Criterio usado: {self.criterio_var.get().upper()}
+Umbral: {self.clasificador.umbral:.6f}
+        """
+        
+        ax4.text(0.1, 0.9, stats_text.strip(), transform=ax4.transAxes,
+                fontsize=10, verticalalignment='top', fontfamily='monospace',
+                bbox=dict(boxstyle="round,pad=0.5", facecolor=COLORS['card_bg'], alpha=0.8))
+        
+        fig.tight_layout(pad=2.0)
+        
+        # Crear canvas y empaquetarlo
+        canvas = FigureCanvasTkAgg(fig, images_frame)
+        canvas.draw()
+        canvas_widget = canvas.get_tk_widget()
+        canvas_widget.pack(fill=tk.BOTH, expand=True)
+        
+        # Frame de botones
+        buttons_frame = tk.Frame(main_frame, bg=COLORS['background'])
+        buttons_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        # Botón para guardar resultado
+        tk.Button(buttons_frame,
+                 text="💾 Guardar Resultado",
+                 command=lambda: self._guardar_resultado_clasificacion(fig, nombre_archivo),
+                 bg=COLORS['secondary'],
+                 fg='white',
+                 font=('Segoe UI', 9)).pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Botón cerrar
+        tk.Button(buttons_frame,
+                 text="Cerrar",
+                 command=ventana.destroy,
+                 bg=COLORS['primary'],
+                 fg='white',
+                 font=('Segoe UI', 9)).pack(side=tk.RIGHT)
+    
+    def _guardar_resultado_clasificacion(self, figura, nombre_archivo):
+        """Guarda el resultado de clasificación como imagen"""
+        from tkinter import filedialog
+        import os
+        
+        # Obtener nombre base sin extensión
+        nombre_base = os.path.splitext(os.path.basename(nombre_archivo))[0]
+        
+        # Seleccionar donde guardar
+        archivo_salida = filedialog.asksaveasfilename(
+            title="Guardar resultado de clasificación",
+            defaultextension=".png",
+            initialvalue=f"{nombre_base}_clasificacion.png",
+            filetypes=[
+                ("PNG", "*.png"),
+                ("JPG", "*.jpg"),
+                ("PDF", "*.pdf"),
+                ("Todos los archivos", "*.*")
+            ]
+        )
+        
+        if archivo_salida:
+            try:
+                figura.savefig(archivo_salida, dpi=300, bbox_inches='tight', 
+                             facecolor=COLORS['background'])
+                
+                # Mostrar confirmación
+                tk.messagebox.showinfo("Guardado", f"Resultado guardado en:\n{archivo_salida}")
+                
+            except Exception as e:
+                self._mostrar_mensaje_error(f"Error al guardar: {e}")
