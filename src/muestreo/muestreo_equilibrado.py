@@ -2,7 +2,7 @@
 Funciones para muestreo equilibrado de píxeles por clase usando máscaras.
 """
 import numpy as np
-from config.configuracion import SEED
+from ..config.configuracion import SEED
 
 
 def muestreo_equilibrado(imagenes, n_muestra=1000, semilla=SEED):

@@ -124,7 +124,7 @@ def comparar_criterios_umbral(imagenes_entrenamiento, imagenes_validacion):
     Returns:
         dict: Resultados de evaluación para cada criterio
     """
-    from .clasificador_bayesiano import ClasificadorBayesianoRGB
+    from .bayesiano import ClasificadorBayesianoRGB
     
     criterios = ['youden', 'equal_error', 'prior_balanced']
     resultados = {}

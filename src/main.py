@@ -14,7 +14,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.preprocesamiento.carga import cargar_imagenes_y_mascaras
 from src.preprocesamiento.particion import particionar_datos
 from src.estadisticas.estadisticas_rgb import estadisticas_rgb
-from src.gui.ventanas import VentanaPrincipal
+
+# Importar la ventana modular (arquitectura MVC)
+from src.gui.ventana_modular import VentanaPrincipalModular
+
+ventana_clase = VentanaPrincipalModular
+ventana_tipo = "modular (MVC)"
+print("✅ Usando VentanaPrincipalModular - Arquitectura MVC")
 
 def main():
 	"""
@@ -24,15 +30,15 @@ def main():
 	3. Calcula estadísticas RGB
 	4. Muestra la interfaz gráfica interactiva con clasificador integrado
 	"""
-	print("Cargando y particionando datos...")
+	print("🔄 Cargando y particionando datos...")
 	imagenes = cargar_imagenes_y_mascaras()
 	train, val, test = particionar_datos(imagenes)
 	
-	print("Calculando estadísticas RGB...")
+	print("📊 Calculando estadísticas RGB...")
 	stats = estadisticas_rgb(train)
 	
-	print("Iniciando interfaz gráfica...")
-	ventana = VentanaPrincipal(stats)
+	print(f"🚀 Iniciando interfaz gráfica {ventana_tipo}...")
+	ventana = ventana_clase(stats)
 	ventana.mainloop()
 
 if __name__ == "__main__":
