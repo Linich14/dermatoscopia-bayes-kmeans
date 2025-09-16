@@ -1,9 +1,29 @@
 """
-Implementación del modelo gaussiano multivariado para clasificación Bayesiana.
+*** MODELO GAUSSIANO MULTIVARIADO PARA CLASIFICACIÓN BAYESIANA ***
 
 Este módulo contiene la implementación específica del modelo estadístico
 utilizado para modelar las distribuciones de píxeles de lesión y piel sana
 en el espacio de color RGB.
+
+FUNDAMENTO TEÓRICO MATEMÁTICO:
+La clasificación Bayesiana asume que los píxeles de cada clase (lesión/sana)
+siguen una distribución gaussiana multivariada en el espacio RGB.
+
+MODELO ESTADÍSTICO:
+P(RGB|clase) ~ N(μ, Σ)
+
+Donde:
+- μ = [μ_R, μ_G, μ_B]ᵀ es el vector de medias
+- Σ es la matriz de covarianza 3×3 que captura:
+  * Varianzas σ²_R, σ²_G, σ²_B en la diagonal
+  * Covarianzas σ_RG, σ_RB, σ_GB fuera de la diagonal
+
+ESTIMACIÓN POR MÁXIMA VEROSIMILITUD:
+- Media muestral: μ̂ = (1/n) Σᵢ xᵢ
+- Covarianza muestral: Σ̂ = (1/n-1) Σᵢ (xᵢ-μ̂)(xᵢ-μ̂)ᵀ
+
+FUNCIÓN DE DENSIDAD:
+f(x|μ,Σ) = (2π)^(-3/2) |Σ|^(-1/2) exp(-½(x-μ)ᵀΣ⁻¹(x-μ))
 """
 
 import numpy as np
@@ -40,6 +60,36 @@ class ModeloGaussianoMultivariado(ModeloBase, IModelo):
     
     def entrenar(self, datos: np.ndarray) -> None:
         """
+        *** ESTIMACIÓN DE PARÁMETROS GAUSSIANOS POR MLE ***
+        Localización: Línea ~110 del archivo modelo.py
+        
+        ESTIMACIÓN POR MÁXIMA VEROSIMILITUD (MLE):
+        
+        1. ESTIMADOR DE MEDIA (insesgado):
+           μ̂ = (1/n) Σᵢ xᵢ donde xᵢ son vectores RGB
+           
+        2. ESTIMADOR DE COVARIANZA (insesgado):
+           Σ̂ = (1/(n-1)) Σᵢ (xᵢ - μ̂)(xᵢ - μ̂)ᵀ
+           
+           Matriz resultante 3×3:
+           [σ²_R   σ_RG   σ_RB ]
+           [σ_RG   σ²_G   σ_GB ]
+           [σ_RB   σ_GB   σ²_B ]
+        
+        INTERPRETACIÓN DE LA COVARIANZA:
+        - Diagonal: varianzas de cada canal (dispersión intra-canal)
+        - Fuera diagonal: correlaciones entre canales RGB
+        - σ_RG > 0: R y G tienden a variar juntos
+        
+        REGULARIZACIÓN NUMÉRICA:
+        Σ̂_reg = Σ̂ + λI, donde λ = 1e-6
+        
+        Propósito:
+        - Garantiza definición positiva de Σ
+        - Evita singularidad en Σ⁻¹
+        - Mejora estabilidad numérica
+        - Previene overfitting en muestras pequeñas
+        
         Entrena el modelo estimando parámetros de la distribución gaussiana.
         
         Estima los parámetros de media y covarianza de la distribución

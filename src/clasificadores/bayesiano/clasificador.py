@@ -4,6 +4,24 @@ Clasificador Bayesiano RGB refactorizado.
 Este módulo contiene la implementación principal del clasificador Bayesiano
 que orquesta todos los componentes especializados siguiendo principios
 de código limpio y responsabilidad única.
+
+FUNCIONES PRINCIPALES PARA LOCALIZAR:
+- entrenar(): Línea ~70 - Entrena clasificador RGB con muestreo equilibrado
+- clasificar(): Línea ~120 - Clasifica imagen RGB píxel por píxel
+- evaluar(): Línea ~150 - Evalúa rendimiento con métricas completas
+- _calcular_log_likelihood(): Línea ~200 - Calcula probabilidades gaussianas RGB
+- _seleccionar_umbral_optimo(): Línea ~250 - Determina umbral según criterio
+
+CÓMO FUNCIONA EL MÉTODO RGB TRADICIONAL:
+1. Extrae píxeles balanceados de imágenes (50% lesión, 50% sana)
+2. Calcula distribuciones gaussianas para cada clase en espacio RGB
+3. Entrena selector de umbral óptimo (Youden, EER, etc.)
+4. Para clasificar: calcula likelihood ratio y aplica umbral de decisión
+5. Resultado: máscara binaria con píxeles clasificados
+
+DIFERENCIA CON PCA:
+- RGB: Opera directamente en espacio de color RGB (3 dimensiones)
+- PCA: Primero reduce dimensionalidad, luego aplica Bayesiano
 """
 
 import numpy as np
@@ -63,7 +81,33 @@ class ClasificadorBayesianoRGB(ClasificadorBase, IClasificador):
     
     def entrenar(self, datos_entrenamiento: List[Dict]) -> None:
         """
-        Entrena el clasificador con datos de entrenamiento.
+        *** FUNCIÓN PRINCIPAL DE ENTRENAMIENTO BAYESIANO RGB ***
+        Localización: Línea ~82 del archivo clasificador.py
+        
+        FUNDAMENTO TEÓRICO:
+        Implementa clasificación Bayesiana basada en el Teorema de Bayes:
+        P(Clase|RGB) = P(RGB|Clase) × P(Clase) / P(RGB)
+        
+        MATEMÁTICA APLICADA:
+        1. Distribuciones Gaussianas Multivariadas:
+           - Para lesión: RGB ~ N(μ_lesion, Σ_lesion)
+           - Para sana: RGB ~ N(μ_sana, Σ_sana)
+        
+        2. Log-Likelihood Ratio (LLR):
+           LLR = log[P(RGB|lesion)/P(RGB|sana)] + log[P(lesion)/P(sana)]
+           
+        3. Decisión: Si LLR > umbral → lesión, sino → sana
+        
+        PROCESO DE ENTRENAMIENTO:
+        1. Muestreo equilibrado (50% lesión, 50% sana) → evita sesgo
+        2. Estimación de parámetros gaussianos (μ, Σ) por máxima verosimilitud
+        3. Cálculo de probabilidades a priori P(lesión), P(sana)
+        4. Selección de umbral óptimo según criterio (Youden, EER, etc.)
+        
+        ROBUSTEZ ESTADÍSTICA:
+        - Regularización de matrices de covarianza para estabilidad numérica
+        - Validación de definición positiva de Σ
+        - Manejo de casos degenerados
         
         Args:
             datos_entrenamiento: Lista de diccionarios con imágenes y máscaras
@@ -105,7 +149,36 @@ class ClasificadorBayesianoRGB(ClasificadorBase, IClasificador):
     
     def clasificar(self, imagen: np.ndarray) -> np.ndarray:
         """
-        Clasifica una imagen RGB.
+        *** FUNCIÓN DE CLASIFICACIÓN BAYESIANA RGB ***
+        Localización: Línea ~150 del archivo clasificador.py
+        
+        FUNDAMENTO MATEMÁTICO:
+        Aplica la regla de decisión Bayesiana píxel por píxel:
+        
+        1. CÁLCULO DE VEROSIMILITUDES:
+           P(RGB|lesión) usando distribución N(μ_lesion, Σ_lesion)
+           P(RGB|sana) usando distribución N(μ_sana, Σ_sana)
+        
+        2. LOG-LIKELIHOOD RATIO (LLR):
+           LLR = log[P(RGB|lesión)] - log[P(RGB|sana)] + log[P(lesión)/P(sana)]
+           
+           Ventajas del log:
+           - Evita underflow numérico
+           - Convierte multiplicaciones en sumas
+           - Estabilidad computacional
+        
+        3. REGLA DE DECISIÓN:
+           Si LLR ≥ umbral → píxel clasificado como lesión
+           Si LLR < umbral → píxel clasificado como sana
+        
+        TEOREMA DE BAYES APLICADO:
+        P(lesión|RGB) ∝ P(RGB|lesión) × P(lesión)
+        P(sana|RGB) ∝ P(RGB|sana) × P(sana)
+        
+        El umbral óptimo minimiza error según criterio elegido:
+        - Youden: maximiza sensibilidad + especificidad
+        - EER: iguala falsos positivos y falsos negativos
+        - Prior Balanced: considera probabilidades a priori
         
         Args:
             imagen: Imagen RGB normalizada [0,1] de forma (H,W,3)
@@ -126,7 +199,38 @@ class ClasificadorBayesianoRGB(ClasificadorBase, IClasificador):
     
     def evaluar(self, datos_test: List[Dict]) -> Dict[str, Any]:
         """
-        Evalúa el clasificador en datos de prueba.
+        *** FUNCIÓN DE EVALUACIÓN CON MÉTRICAS MÉDICAS ***
+        Localización: Línea ~180 del archivo clasificador.py
+        
+        MÉTRICAS ESTADÍSTICAS IMPLEMENTADAS:
+        
+        1. MATRIZ DE CONFUSIÓN:
+           - TP (True Positives): píxeles lesión correctamente identificados
+           - TN (True Negatives): píxeles sanos correctamente identificados  
+           - FP (False Positives): píxeles sanos clasificados como lesión
+           - FN (False Negatives): píxeles lesión clasificados como sanos
+        
+        2. MÉTRICAS DERIVADAS:
+           - Exactitud = (TP + TN) / (TP + TN + FP + FN)
+           - Precisión = TP / (TP + FP) → "de los que digo lesión, cuántos son"
+           - Sensibilidad (Recall) = TP / (TP + FN) → "de las lesiones reales, cuántas detecto"
+           - Especificidad = TN / (TN + FP) → "de los sanos reales, cuántos identifico"
+        
+        3. MÉTRICAS ESPECIALIZADAS:
+           - F1-Score = 2 × (Precisión × Sensibilidad) / (Precisión + Sensibilidad)
+           - Índice Jaccard = TP / (TP + FP + FN) → solapamiento con ground truth
+           - Índice Youden = Sensibilidad + Especificidad - 1 → balance global
+        
+        INTERPRETACIÓN MÉDICA:
+        - Alta sensibilidad: no perdemos lesiones (crítico en medicina)
+        - Alta especificidad: no alarmamos innecesariamente
+        - F1 alto: balance entre precisión y detección
+        - Youden alto: clasificador balanceado óptimo
+        
+        VALIDACIÓN ESTADÍSTICA:
+        - Evaluación en conjunto independiente (test set)
+        - Métricas robustas ante desbalance de clases
+        - Análisis de performance píxel-a-píxel
         
         Args:
             datos_test: Lista de diccionarios con imágenes y máscaras de prueba
@@ -266,7 +370,39 @@ class ClasificadorBayesianoRGB(ClasificadorBase, IClasificador):
     
     def _seleccionar_umbral_optimo(self, datos_validacion: List[Dict]) -> None:
         """
-        Selecciona el umbral óptimo usando datos de validación.
+        *** SELECCIÓN DE UMBRAL ÓPTIMO BAYESIANO ***
+        Localización: Línea ~371 del archivo clasificador.py
+        
+        FUNDAMENTO TEÓRICO:
+        El umbral τ en la regla de decisión LLR ≥ τ determina el balance
+        entre sensibilidad y especificidad del clasificador.
+        
+        CRITERIOS DE OPTIMIZACIÓN IMPLEMENTADOS:
+        
+        1. ÍNDICE YOUDEN (J = Sensibilidad + Especificidad - 1):
+           - Maximiza la suma de sensibilidad y especificidad
+           - Punto óptimo en curva ROC (máxima distancia a línea diagonal)
+           - Interpretación: máximo beneficio neto del test diagnóstico
+           
+        2. EQUAL ERROR RATE (EER):
+           - Iguala False Positive Rate (FPR) y False Negative Rate (FNR)
+           - Punto donde FPR = FNR = error_rate
+           - Útil cuando costos de errores tipo I y II son similares
+           
+        3. PRIOR BALANCED:
+           - Incorpora probabilidades a priori en la decisión
+           - Umbral = log[P(sana)/P(lesión)] (Bayes óptimo)
+           - Minimiza error de clasificación esperado
+        
+        PROCESO DE OPTIMIZACIÓN:
+        1. Calcula LLR para todos los píxeles de validación
+        2. Prueba múltiples umbrales candidatos
+        3. Evalúa criterio de optimización para cada umbral
+        4. Selecciona umbral que maximiza/minimiza criterio objetivo
+        
+        VALIDACIÓN CRUZADA:
+        - Usa conjunto independiente para evitar overfitting
+        - Garantiza generalización a datos no vistos
         
         Args:
             datos_validacion: Datos para optimizar el umbral
@@ -294,13 +430,49 @@ class ClasificadorBayesianoRGB(ClasificadorBase, IClasificador):
     
     def _calcular_razones_verosimilitud(self, imagen: np.ndarray) -> np.ndarray:
         """
-        Calcula razones de verosimilitud para cada píxel.
+        *** CÁLCULO DE LOG-LIKELIHOOD RATIO BAYESIANO ***
+        Localización: Línea ~431 del archivo clasificador.py
+        
+        FUNDAMENTO MATEMÁTICO:
+        Implementa el núcleo de la inferencia Bayesiana mediante el 
+        Log-Likelihood Ratio (LLR) para cada píxel RGB.
+        
+        FÓRMULA IMPLEMENTADA:
+        LLR(x) = log[P(x|lesión)/P(x|sana)] + log[P(lesión)/P(sana)]
+        
+        Donde:
+        - x = vector RGB del píxel [R, G, B]
+        - P(x|clase) = distribución gaussiana multivariada
+        - P(clase) = probabilidad a priori de la clase
+        
+        DISTRIBUCIÓN GAUSSIANA MULTIVARIADA:
+        P(x|clase) = (2π)^(-k/2) |Σ|^(-1/2) exp(-½(x-μ)ᵀΣ⁻¹(x-μ))
+        
+        Donde:
+        - k = 3 (dimensiones RGB)
+        - μ = vector de medias [μ_R, μ_G, μ_B]
+        - Σ = matriz de covarianza 3×3
+        - |Σ| = determinante de la matriz de covarianza
+        
+        LOG-LIKELIHOOD (evita underflow):
+        log P(x|clase) = -½[k×log(2π) + log|Σ| + (x-μ)ᵀΣ⁻¹(x-μ)]
+        
+        VENTAJAS DEL ENFOQUE LOG:
+        1. Estabilidad numérica (evita productos de números muy pequeños)
+        2. Eficiencia computacional (sumas en lugar de productos)
+        3. Robustez ante valores extremos
+        
+        DISTANCIA DE MAHALANOBIS:
+        d²(x,μ) = (x-μ)ᵀΣ⁻¹(x-μ)
+        - Considera correlaciones entre canales RGB
+        - Normaliza por variabilidad de cada clase
+        - Generaliza distancia euclidiana
         
         Args:
             imagen: Imagen RGB de entrada
             
         Returns:
-            Matriz de razones de verosimilitud
+            Matriz de razones de verosimilitud (LLR para cada píxel)
         """
         h, w, c = imagen.shape
         pixels = imagen.reshape(-1, 3)

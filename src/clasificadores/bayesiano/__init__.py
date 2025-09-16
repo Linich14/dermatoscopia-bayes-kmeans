@@ -15,12 +15,14 @@ Componentes:
 # Importar componentes principales para compatibilidad
 try:
     from .clasificador import ClasificadorBayesianoRGB
+    from .clasificador_pca import ClasificadorBayesianoPCA
     from .modelo import ModeloGaussianoMultivariado
     from .umbrales import SelectorUmbral
     from .evaluacion import EvaluadorClasificador
     
     __all__ = [
         'ClasificadorBayesianoRGB',
+        'ClasificadorBayesianoPCA',
         'ModeloGaussianoMultivariado', 
         'SelectorUmbral',
         'EvaluadorClasificador'

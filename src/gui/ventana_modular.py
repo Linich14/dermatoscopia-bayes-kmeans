@@ -3,6 +3,26 @@ Ventana principal refactorizada con arquitectura modular.
 
 Esta implementación utiliza el patrón MVC y componentes modulares
 para una mejor organización y mantenibilidad del código.
+
+COMPONENTES PRINCIPALES PARA LOCALIZAR:
+- _create_classifier_section(): Línea ~184 - Crea controles del clasificador Bayesiano + PCA
+- _train_classifier(): Línea ~326 - Maneja entrenamiento según tipo seleccionado
+- _compare_rgb_vs_pca(): Línea ~338 - Inicia comparación RGB vs PCA
+- _toggle_pca_controls(): Línea ~348 - Muestra/oculta controles específicos de PCA
+- _show_pca_justification(): Línea ~345 - Muestra justificación metodológica
+
+ARQUITECTURA:
+- Ventana usa patrón MVC con ClassifierController
+- Controles modulares y reutilizables
+- Comunicación via callbacks para actualizar estado
+- Hilos separados para operaciones largas
+
+FLUJO DE USUARIO:
+1. Seleccionar área y canal para histogramas
+2. Elegir tipo de clasificador (RGB vs PCA)  
+3. Configurar criterios (umbral, PCA)
+4. Entrenar modelo
+5. Evaluar y comparar resultados
 """
 
 import tkinter as tk
@@ -43,6 +63,8 @@ class VentanaPrincipalModular(tk.Tk):
         self.area_var = tk.StringVar(value='lesion')
         self.canal_var = tk.StringVar(value='R')
         self.criterio_var = tk.StringVar(value='youden')
+        self.usar_pca_var = tk.BooleanVar(value=False)
+        self.criterio_pca_var = tk.StringVar(value='varianza')
         
         # Controlador
         self.classifier_controller = ClassifierController(self)
@@ -81,7 +103,7 @@ class VentanaPrincipalModular(tk.Tk):
         header.pack_propagate(False)
         
         title = tk.Label(header,
-                        text="🔬 Análisis de Imágenes Dermatoscópicas - Versión Modular",
+                        text="Análisis de Imágenes Dermatoscópicas",
                         fg='white',
                         bg=COLORS['primary'],
                         font=('Segoe UI', 16, 'bold'))
@@ -180,15 +202,75 @@ class VentanaPrincipalModular(tk.Tk):
         reset_btn.pack(pady=5, padx=10)
     
     def _create_classifier_section(self, parent):
-        """Crea la sección del clasificador Bayesiano."""
+        """
+        *** SECCIÓN PRINCIPAL DEL CLASIFICADOR ***
+        Localización: Línea ~184 del archivo ventana_modular.py
+        
+        PROPÓSITO: Crea todos los controles para configurar y usar el clasificador
+        
+        CONTROLES INCLUIDOS:
+        1. Checkbox para activar/desactivar PCA
+        2. Selector de criterio PCA (varianza, codo, discriminativo)
+        3. Botón para ver justificación metodológica PCA
+        4. Selector de criterio de umbral (Youden, EER, etc.)
+        5. Botones de acción: entrenar, evaluar, comparar, clasificar
+        
+        FUNCIONALIDAD DINÁMICA:
+        - Controles PCA se muestran/ocultan según checkbox
+        - Botones se activan/desactivan según estado del entrenamiento
+        - Indicadores visuales de progreso
+        
+        RESULTADO: Panel completo para manejo del clasificador Bayesiano + PCA
+        
+        Crea la sección del clasificador Bayesiano."""
         section_frame = tk.LabelFrame(parent,
-                                     text="Clasificador Bayesiano RGB",
+                                     text="Clasificador Bayesiano RGB + PCA",
                                      bg=COLORS['background'],
                                      fg=COLORS['text'],
                                      font=('Segoe UI', 10, 'bold'))
         section_frame.pack(fill=tk.X, padx=5, pady=10)
         
-        # Selector de criterio
+        # Checkbox para usar PCA
+        pca_frame = tk.Frame(section_frame, bg=COLORS['background'])
+        pca_frame.pack(fill=tk.X, padx=10, pady=(10, 5))
+        
+        pca_check = tk.Checkbutton(pca_frame,
+                                  text="🔬 Usar PCA (Reducción Dimensional)",
+                                  variable=self.usar_pca_var,
+                                  command=self._toggle_pca_controls,
+                                  font=('Segoe UI', 9, 'bold'),
+                                  fg=COLORS['primary'],
+                                  bg=COLORS['background'],
+                                  selectcolor=COLORS['background'])
+        pca_check.pack(anchor='w')
+        
+        # Frame para controles PCA (inicialmente oculto)
+        self.pca_controls_frame = tk.Frame(section_frame, bg=COLORS['accent_light'])
+        
+        # Criterio PCA
+        tk.Label(self.pca_controls_frame,
+                text="Criterio selección componentes:",
+                font=('Segoe UI', 8),
+                fg=COLORS['text'],
+                bg=COLORS['accent_light']).pack(fill=tk.X, padx=10, pady=(5, 2))
+        
+        criterio_pca_combo = ttk.Combobox(self.pca_controls_frame,
+                                         textvariable=self.criterio_pca_var,
+                                         values=['varianza', 'codo', 'discriminativo'],
+                                         state='readonly',
+                                         font=('Segoe UI', 8))
+        criterio_pca_combo.pack(fill=tk.X, padx=10, pady=(0, 5))
+        
+        # Botón de justificación PCA
+        justificar_btn = RoundedButton(self.pca_controls_frame,
+                                     text="📄 Ver Justificación PCA",
+                                     command=self._show_pca_justification,
+                                     background=COLORS['info'],
+                                     width=160,
+                                     height=25)
+        justificar_btn.pack(pady=2, padx=10)
+        
+        # Selector de criterio de umbral
         tk.Label(section_frame,
                 text="Criterio de umbral:",
                 font=('Segoe UI', 9),
@@ -220,8 +302,9 @@ class VentanaPrincipalModular(tk.Tk):
         classifier_actions = [
             ("🤖 Entrenar", self._train_classifier, COLORS['accent']),
             ("📊 Evaluar", self._evaluate_classifier, COLORS['info']),
-            ("⚖️ Comparar", self._compare_criteria, COLORS['secondary']),
-            ("🖼️ Clasificar", self._classify_image, COLORS['warning'])
+            ("⚖️ Comparar Criterios", self._compare_criteria, COLORS['secondary']),
+            ("🆚 RGB vs PCA", self._compare_rgb_vs_pca, COLORS['warning']),
+            ("🖼️ Clasificar Imagen", self._classify_image, COLORS['success'])
         ]
         
         for text, command, color in classifier_actions:
@@ -263,6 +346,11 @@ class VentanaPrincipalModular(tk.Tk):
         self.area_var.set('lesion')
         self.canal_var.set('R')
         self.criterio_var.set('youden')
+        self.usar_pca_var.set(False)
+        self.criterio_pca_var.set('varianza')
+        
+        # Ocultar controles PCA
+        self._toggle_pca_controls()
         
         # Reiniciar controlador
         self.classifier_controller.clasificador = None
@@ -278,7 +366,31 @@ class VentanaPrincipalModular(tk.Tk):
     def _train_classifier(self):
         """Inicia el entrenamiento del clasificador."""
         criterio = self.criterio_var.get()
-        self.classifier_controller.train_classifier(criterio)
+        usar_pca = self.usar_pca_var.get()
+        criterio_pca = self.criterio_pca_var.get()
+        
+        self.classifier_controller.train_classifier(
+            criterio, 
+            usar_pca=usar_pca, 
+            criterio_pca=criterio_pca
+        )
+    
+    def _compare_rgb_vs_pca(self):
+        """Compara rendimiento RGB vs PCA."""
+        criterio = self.criterio_var.get()
+        criterio_pca = self.criterio_pca_var.get()
+        self.classifier_controller.compare_rgb_vs_pca(criterio, criterio_pca)
+    
+    def _show_pca_justification(self):
+        """Muestra la justificación metodológica del PCA."""
+        self.classifier_controller.show_pca_justification()
+    
+    def _toggle_pca_controls(self):
+        """Muestra/oculta controles específicos de PCA."""
+        if self.usar_pca_var.get():
+            self.pca_controls_frame.pack(fill=tk.X, padx=5, pady=5)
+        else:
+            self.pca_controls_frame.pack_forget()
     
     def _evaluate_classifier(self):
         """Evalúa el clasificador."""

@@ -402,4 +402,257 @@ maximizando la capacidad discriminativa del clasificador para aplicaciones médi
                  pady=5).pack()
 
 
-__all__ = ['EvaluationDialog', 'ComparisonDialog']
+class RGBvsPCADialog(tk.Toplevel):
+    """
+    *** DIÁLOGO DE COMPARACIÓN RGB vs PCA ***
+    Localización: Línea ~405 del archivo dialogs/__init__.py
+    
+    PROPÓSITO: Muestra comparación detallada entre métodos RGB y PCA
+    
+    SECCIONES DEL DIÁLOGO:
+    1. Información PCA: criterio, componentes, varianza preservada
+    2. Tabla comparativa: métricas lado a lado con diferencias
+    3. Justificación metodológica: texto completo del PCA
+    4. Recomendación final: cuál método usar y por qué
+    
+    CÓMO SE ORGANIZA LA INFORMACIÓN:
+    - Encabezado con configuración PCA aplicada
+    - Tabla de métricas con colores según mejor rendimiento
+    - Texto scrollable con justificación técnica
+    - Panel de recomendación con código de colores
+    
+    DATOS DE ENTRADA:
+    - comparacion: resultado de clasificador_pca.comparar_con_rgb()
+    - clasificador_pca: para obtener justificación adicional
+    
+    USO: Se abre automáticamente al comparar RGB vs PCA
+    
+    Diálogo para mostrar comparación RGB vs PCA.
+    
+    Muestra análisis detallado del rendimiento comparativo entre
+    clasificador RGB tradicional y clasificador con reducción PCA.
+    """
+    
+    def __init__(self, parent, comparacion: Dict[str, Any], clasificador_pca):
+        """
+        Inicializa el diálogo de comparación RGB vs PCA.
+        
+        Args:
+            parent: Ventana padre
+            comparacion: Resultado de la comparación
+            clasificador_pca: Clasificador PCA para obtener información adicional
+        """
+        super().__init__(parent)
+        self.title("Comparación RGB vs PCA")
+        self.geometry("900x800")
+        self.configure(bg=COLORS['background'])
+        
+        self.comparacion = comparacion
+        self.clasificador_pca = clasificador_pca
+        
+        self._create_widgets()
+        
+        # Centrar en la ventana padre
+        self.transient(parent)
+        self.grab_set()
+    
+    def _create_widgets(self):
+        """Crea los widgets del diálogo."""
+        # Frame principal scrollable
+        main_frame = ScrollableFrame(self)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        content = main_frame.scrollable_frame
+        
+        # Título
+        title_label = tk.Label(content,
+                              text="🆚 Comparación: RGB vs PCA",
+                              font=('Segoe UI', 16, 'bold'),
+                              fg=COLORS['primary'],
+                              bg=COLORS['background'])
+        title_label.pack(pady=(10, 20))
+        
+        # Información PCA
+        self._create_pca_info_section(content)
+        
+        # Tabla de comparación
+        self._create_comparison_table(content)
+        
+        # Justificación metodológica PCA
+        self._create_pca_justification_section(content)
+        
+        # Recomendación final
+        self._create_recommendation_section(content)
+        
+        # Botón cerrar
+        self._create_close_button()
+    
+    def _create_pca_info_section(self, parent):
+        """Crea la sección de información del PCA."""
+        info_frame = RoundedContainer(parent, background=COLORS['accent_light'])
+        info_frame.pack(fill=tk.X, padx=20, pady=10)
+        
+        content = info_frame.inner_frame
+        
+        tk.Label(content,
+                text="🔬 Configuración PCA Aplicada",
+                font=('Segoe UI', 12, 'bold'),
+                fg=COLORS['primary'],
+                bg=COLORS['accent_light']).pack(pady=(10, 5))
+        
+        pca_info = self.comparacion['pca']
+        
+        info_text = f"""
+Criterio de selección: {pca_info['criterio_seleccion'].upper()}
+Componentes seleccionados: {pca_info['dimensiones']} de 3 originales
+Varianza preservada: {pca_info['varianza_preservada']:.1%}
+Reducción dimensional: {((3 - pca_info['dimensiones']) / 3 * 100):.1f}%
+        """
+        
+        tk.Label(content,
+                text=info_text.strip(),
+                font=('Consolas', 10),
+                fg=COLORS['text'],
+                bg=COLORS['accent_light'],
+                justify=tk.LEFT).pack(pady=(0, 10))
+    
+    def _create_comparison_table(self, parent):
+        """Crea tabla de comparación de métricas."""
+        table_frame = RoundedContainer(parent, background=COLORS['card_bg'])
+        table_frame.pack(fill=tk.X, padx=20, pady=10)
+        
+        content = table_frame.inner_frame
+        
+        tk.Label(content,
+                text="📊 Comparación de Rendimiento",
+                font=('Segoe UI', 12, 'bold'),
+                fg=COLORS['primary'],
+                bg=COLORS['card_bg']).pack(pady=(10, 5))
+        
+        # Crear tabla
+        pca_metricas = self.comparacion['pca']['metricas']
+        rgb_metricas = self.comparacion['rgb']['metricas']
+        diferencias = self.comparacion['diferencias']
+        
+        table_text = f"""
+{'Métrica':<15} {'RGB':<10} {'PCA':<10} {'Diferencia':<12} {'Mejor'}
+{'-'*15} {'-'*10} {'-'*10} {'-'*12} {'-'*10}
+{'Exactitud':<15} {rgb_metricas['exactitud']:<10.4f} {pca_metricas['exactitud']:<10.4f} {diferencias['exactitud']:+.4f}{'':4} {'PCA' if diferencias['exactitud'] > 0 else 'RGB'}
+{'Precisión':<15} {rgb_metricas['precision']:<10.4f} {pca_metricas['precision']:<10.4f} {diferencias['precision']:+.4f}{'':4} {'PCA' if diferencias['precision'] > 0 else 'RGB'}
+{'Sensibilidad':<15} {rgb_metricas['sensibilidad']:<10.4f} {pca_metricas['sensibilidad']:<10.4f} {diferencias['sensibilidad']:+.4f}{'':4} {'PCA' if diferencias['sensibilidad'] > 0 else 'RGB'}
+{'Especificidad':<15} {rgb_metricas['especificidad']:<10.4f} {pca_metricas['especificidad']:<10.4f} {diferencias['especificidad']:+.4f}{'':4} {'PCA' if diferencias['especificidad'] > 0 else 'RGB'}
+{'F1-Score':<15} {rgb_metricas['f1_score']:<10.4f} {pca_metricas['f1_score']:<10.4f} {diferencias['f1_score']:+.4f}{'':4} {'PCA' if diferencias['f1_score'] > 0 else 'RGB'}
+{'Jaccard':<15} {rgb_metricas['jaccard']:<10.4f} {pca_metricas['jaccard']:<10.4f} {diferencias['jaccard']:+.4f}{'':4} {'PCA' if diferencias['jaccard'] > 0 else 'RGB'}
+{'Youden':<15} {rgb_metricas['youden']:<10.4f} {pca_metricas['youden']:<10.4f} {diferencias['youden']:+.4f}{'':4} {'PCA' if diferencias['youden'] > 0 else 'RGB'}
+        """
+        
+        tk.Label(content,
+                text=table_text.strip(),
+                font=('Consolas', 9),
+                fg=COLORS['text'],
+                bg=COLORS['card_bg'],
+                justify=tk.LEFT).pack(pady=(0, 10))
+    
+    def _create_pca_justification_section(self, parent):
+        """Crea la sección de justificación PCA."""
+        just_frame = RoundedContainer(parent, background=COLORS['card_bg'])
+        just_frame.pack(fill=tk.X, padx=20, pady=10)
+        
+        content = just_frame.inner_frame
+        
+        tk.Label(content,
+                text="📄 Justificación Metodológica PCA",
+                font=('Segoe UI', 12, 'bold'),
+                fg=COLORS['primary'],
+                bg=COLORS['card_bg']).pack(pady=(10, 5))
+        
+        # Obtener justificación del clasificador PCA
+        if hasattr(self.clasificador_pca, 'obtener_justificacion_pca'):
+            justificacion = self.clasificador_pca.obtener_justificacion_pca()
+        else:
+            justificacion = "Justificación no disponible"
+        
+        # Mostrar en texto scrollable
+        text_widget = tk.Text(content,
+                             height=10,
+                             width=80,
+                             font=('Consolas', 9),
+                             bg=COLORS['background'],
+                             fg=COLORS['text'],
+                             wrap=tk.WORD,
+                             state=tk.DISABLED)
+        
+        text_widget.config(state=tk.NORMAL)
+        text_widget.insert(tk.END, justificacion)
+        text_widget.config(state=tk.DISABLED)
+        text_widget.pack(pady=(0, 10), padx=10)
+    
+    def _create_recommendation_section(self, parent):
+        """Crea la sección de recomendación final."""
+        mejor_metodo = "PCA" if self.comparacion['diferencias']['youden'] > 0 else "RGB"
+        ventaja = abs(self.comparacion['diferencias']['youden'])
+        
+        bg_color = COLORS['success'] if mejor_metodo == "PCA" else COLORS['warning']
+        
+        rec_frame = RoundedContainer(parent, background=bg_color)
+        rec_frame.pack(fill=tk.X, padx=20, pady=20)
+        
+        content = rec_frame.inner_frame
+        
+        tk.Label(content,
+                text="🎯 Recomendación Metodológica",
+                font=('Segoe UI', 14, 'bold'),
+                fg='white',
+                bg=bg_color).pack(pady=(10, 5))
+        
+        recomendacion = f"""MÉTODO RECOMENDADO: {mejor_metodo}
+
+Ventaja en Índice Youden: {ventaja:.4f} puntos
+
+JUSTIFICACIÓN:
+"""
+        
+        if mejor_metodo == "PCA":
+            recomendacion += f"""
+✅ El PCA con {self.comparacion['pca']['dimensiones']} componentes logra mejor rendimiento
+✅ Preserva {self.comparacion['pca']['varianza_preservada']:.1%} de la información original
+✅ Reduce complejidad dimensional de 3D a {self.comparacion['pca']['dimensiones']}D
+✅ Mejora la estabilidad de las estimaciones gaussianas
+✅ Facilita la interpretación en espacio reducido
+
+RECOMENDACIÓN: Usar clasificador Bayesiano + PCA para análisis dermatoscópico.
+"""
+        else:
+            recomendacion += f"""
+⚠️ El espacio RGB original mantiene mejor rendimiento
+⚠️ La reducción PCA afecta negativamente la discriminación
+⚠️ Pérdida de información relevante en la proyección
+
+RECOMENDACIÓN: Mantener clasificador Bayesiano RGB tradicional.
+Considerar otros criterios PCA o ajustar parámetros.
+"""
+        
+        tk.Label(content,
+                text=recomendacion.strip(),
+                font=('Segoe UI', 10),
+                fg='white',
+                bg=bg_color,
+                wraplength=800,
+                justify=tk.LEFT).pack(pady=(0, 10), padx=15)
+    
+    def _create_close_button(self):
+        """Crea el botón de cerrar."""
+        button_frame = tk.Frame(self, bg=COLORS['background'])
+        button_frame.pack(fill=tk.X, pady=10)
+        
+        tk.Button(button_frame,
+                 text="Cerrar",
+                 command=self.destroy,
+                 bg=COLORS['primary'],
+                 fg='white',
+                 font=('Segoe UI', 11),
+                 padx=20,
+                 pady=5).pack()
+
+
+__all__ = ['EvaluationDialog', 'ComparisonDialog', 'RGBvsPCADialog']
