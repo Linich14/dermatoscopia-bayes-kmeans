@@ -6,11 +6,15 @@ y muestra los resultados agregados en la GUI.
 
 # Importaciones necesarias
 import sys
-sys.path.append('src')
-from preprocesamiento.carga import cargar_imagenes_y_mascaras
-from preprocesamiento.particion import particionar_datos
-from estadisticas.estadisticas_rgb import estadisticas_rgb
-from gui.ventanas import VentanaPrincipal
+import os
+
+# Agregar el directorio padre al path para poder importar módulos src
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.preprocesamiento.carga import cargar_imagenes_y_mascaras
+from src.preprocesamiento.particion import particionar_datos
+from src.estadisticas.estadisticas_rgb import estadisticas_rgb
+from src.gui.ventanas import VentanaPrincipal
 
 def main():
 	"""

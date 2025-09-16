@@ -7,6 +7,7 @@ COLORS = {
     'primary': '#FF4081',      # Rosa fuerte
     'secondary': '#FF80AB',    # Rosa medio
     'accent': '#FF94C2',       # Rosa claro
+    'accent_light': '#FFE0F0', # Rosa muy claro para fondos
     'primary_dark': '#D81B60', # Rosa fuerte oscuro (para hover)
     'background': '#FFFFFF',   # Blanco
     'card_bg': '#F8F9FA',     # Gris muy claro
