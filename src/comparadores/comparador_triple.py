@@ -342,23 +342,26 @@ class ComparadorTriple:
             
             # Entrenar y evaluar (K-Means hace ambos en ejecutar_analisis_completo)
             inicio_evaluacion = time.time()
-            resultado = clasificador.ejecutar_analisis_completo(self.datos_train, self.datos_test)
+            reporte = clasificador.ejecutar_analisis_completo(self.datos_train, self.datos_test)
             tiempo_total_kmeans = time.time() - inicio_evaluacion
             
             # K-Means no tiene separación clara entre entrenamiento y evaluación
             tiempo_entrenamiento = tiempo_total_kmeans * 0.7  # Estimación
             tiempo_evaluacion = tiempo_total_kmeans * 0.3
             
-            # Extraer métricas del mejor resultado
-            mejor_resultado = resultado.mejor_combinacion if resultado else None
+            print(f"🔍 DEBUG K-Means - Reporte recibido: {reporte}")
             
-            if mejor_resultado:
+            # Extraer métricas del mejor resultado (estructura corregida)
+            if reporte and "mejor_combinacion" in reporte and reporte["mejor_combinacion"]["score_total"] > 0:
+                mejor_combinacion_info = reporte["mejor_combinacion"]
+                metricas_promedio = mejor_combinacion_info.get("metricas_promedio", {})
+                
                 # Las métricas de K-Means son diferentes (silhouette, inercia, etc.)
                 # Necesitamos adaptarlas a las métricas estándar de clasificación
-                precision = mejor_resultado.metricas_promedio.get('silhouette', 0.0)
-                recall = max(0, 1.0 - mejor_resultado.metricas_promedio.get('davies_bouldin', 5.0) / 5.0)
-                f1 = mejor_resultado.score_total
-                accuracy = mejor_resultado.metricas_promedio.get('calinski_harabasz', 0.0) / 10.0  # Normalizar
+                precision = metricas_promedio.get('silhouette', 0.0)
+                recall = max(0, 1.0 - metricas_promedio.get('davies_bouldin', 5.0) / 5.0) if metricas_promedio.get('davies_bouldin', 0) > 0 else 0.0
+                f1 = mejor_combinacion_info.get("score_total", 0.0)
+                accuracy = min(metricas_promedio.get('calinski_harabasz', 0.0) / 100.0, 1.0)  # Normalizar y limitar
                 
                 return ResultadoComparacion(
                     nombre_clasificador="K-Means",
@@ -367,24 +370,29 @@ class ComparadorTriple:
                     precision=precision,
                     recall=recall,
                     f1_score=f1,
-                    accuracy=min(accuracy, 1.0),  # Limitar a 1.0
+                    accuracy=accuracy,
                     metricas_especificas={
-                        'silhouette': mejor_resultado.metricas_promedio.get('silhouette', 0.0),
-                        'inercia': mejor_resultado.metricas_promedio.get('inercia', 0.0),
-                        'calinski_harabasz': mejor_resultado.metricas_promedio.get('calinski_harabasz', 0.0),
-                        'davies_bouldin': mejor_resultado.metricas_promedio.get('davies_bouldin', 0.0),
-                        'score_total': mejor_resultado.score_total,
-                        'caracteristicas': self.config_kmeans['caracteristicas']
+                        'silhouette': metricas_promedio.get('silhouette', 0.0),
+                        'inercia': metricas_promedio.get('inercia', 0.0),
+                        'calinski_harabasz': metricas_promedio.get('calinski_harabasz', 0.0),
+                        'davies_bouldin': metricas_promedio.get('davies_bouldin', 0.0),
+                        'score_total': f1,
+                        'caracteristicas': self.config_kmeans['caracteristicas'],
+                        'n_imagenes_analizadas': reporte.get("resumen_general", {}).get("n_imagenes_analizadas", 0)
                     },
-                    mejor_configuracion=f"Características: {mejor_resultado.nombre_combinacion}, Clusters: {self.config_kmeans['n_clusters']}",
-                    imagen_mejor=mejor_resultado.mejor_imagen,
-                    imagen_peor=mejor_resultado.peor_imagen,
+                    mejor_configuracion=f"Características: {mejor_combinacion_info.get('nombre', 'N/A')}, Clusters: {self.config_kmeans['n_clusters']}",
+                    imagen_mejor=mejor_combinacion_info.get("mejor_imagen", "N/A"),
+                    imagen_peor=mejor_combinacion_info.get("peor_imagen", "N/A"),
                     notas="Métricas adaptadas de clustering no supervisado"
                 )
             else:
-                return self._crear_resultado_error("K-Means", "No se obtuvieron resultados válidos")
+                print(f"❌ DEBUG K-Means - No hay resultados válidos en el reporte")
+                return self._crear_resultado_error("K-Means", "No se obtuvieron resultados válidos en el reporte")
                 
         except Exception as e:
+            print(f"❌ ERROR CRÍTICO en K-Means: {e}")
+            import traceback
+            print(f"🔍 TRACEBACK K-Means: {traceback.format_exc()}")
             return self._crear_resultado_error("K-Means", str(e))
     
     def _crear_resultado_error(self, nombre_clasificador: str, error: str) -> ResultadoComparacion:
