@@ -1,11 +1,12 @@
-
 # Dermatoscopia Bayes-KMeans
 
 <div align="center">
    <img src="images/screenshots/home.png" width="600"/>
 </div>
 
-Este proyecto implementa una aplicación para segmentar lesiones en imágenes de dermatoscopía usando inteligencia artificial. Permite comparar distintos métodos de clasificación de píxeles: Bayesiano RGB, Bayesiano con PCA y K-Means.
+Este proyecto aborda el desafío de segmentar lesiones cutáneas en imágenes de dermatoscopía, facilitando el diagnóstico médico y reduciendo la variabilidad del análisis manual. Se desarrolla una aplicación interactiva que compara tres enfoques de clasificación de píxeles (Bayesiano RGB, Bayesiano PCA y K-Means), permitiendo visualizar y evaluar los resultados de segmentación y métricas asociadas en una interfaz gráfica intuitiva.
+
+El contexto de desarrollo es simulado para una clínica ficticia llamada Centro Médico Ñielol, con el objetivo de explorar y validar técnicas de inteligencia artificial aplicadas a la salud. El sistema permite experimentar con distintos métodos de segmentación y análisis de imágenes médicas, en un entorno académico y de experimentación controlada.
 
 ## Objetivo
 
