@@ -30,7 +30,7 @@ class EvaluationDialog(tk.Toplevel):
             modelo_info: Información adicional del modelo (opcional)
         """
         super().__init__(parent)
-        self.title("Resultados de Evaluación")
+        self.title("Centro Médico Ñielol - Evaluación Dermatológica")
         self.geometry(f"{DESIGN['dialog_width']}x{DESIGN['dialog_height']}")
         self.configure(bg=COLORS['background'])
         
@@ -53,7 +53,7 @@ class EvaluationDialog(tk.Toplevel):
         
         # Título
         title_label = tk.Label(content,
-                              text="📊 Resultados de Evaluación",
+                              text="📊 Análisis Diagnóstico - Centro Médico Ñielol",
                               font=('Segoe UI', 16, 'bold'),
                               fg=COLORS['primary'],
                               bg=COLORS['background'])
@@ -83,7 +83,7 @@ class EvaluationDialog(tk.Toplevel):
         content = model_frame.inner_frame
         
         tk.Label(content,
-                text="🤖 Modelo Evaluado",
+                text="🔬 Sistema de Diagnóstico Evaluado",
                 font=('Segoe UI', 12, 'bold'),
                 fg=COLORS['primary'],
                 bg=COLORS['card_bg']).pack(pady=(10, 5))
@@ -113,7 +113,7 @@ class EvaluationDialog(tk.Toplevel):
         content = metrics_frame.inner_frame
         
         tk.Label(content,
-                text="📈 Métricas de Rendimiento",
+                text="📈 Indicadores de Rendimiento Clínico",
                 font=('Segoe UI', 12, 'bold'),
                 fg=COLORS['primary'],
                 bg=COLORS['card_bg']).pack(pady=(10, 5))
@@ -171,7 +171,7 @@ Real Lesión  {mc['TP']:6d}  {mc['FN']:6d}
         content = interp_frame.inner_frame
         
         tk.Label(content,
-                text="💡 Interpretación Automática",
+                text="💡 Interpretación Clínica",
                 font=('Segoe UI', 12, 'bold'),
                 fg=COLORS['primary'],
                 bg=COLORS['accent_light']).pack(pady=(10, 5))
@@ -228,6 +228,19 @@ Real Lesión  {mc['TP']:6d}  {mc['FN']:6d}
     
     def _create_close_button(self):
         """Crea el botón de cerrar."""
+        # Nota clínica importante
+        note_frame = tk.Frame(self, bg=COLORS['background'])
+        note_frame.pack(fill=tk.X, padx=20, pady=(0, 10))
+        
+        tk.Label(note_frame,
+                text="⚠️ NOTA CLÍNICA: Este sistema es una herramienta de apoyo diagnóstico. "
+                     "La decisión clínica final debe ser realizada por un dermatólogo calificado.",
+                font=('Segoe UI', 9, 'italic'),
+                fg=COLORS['text_light'],
+                bg=COLORS['background'],
+                wraplength=600,
+                justify=tk.CENTER).pack()
+        
         button_frame = tk.Frame(self, bg=COLORS['background'])
         button_frame.pack(fill=tk.X, pady=10)
         
@@ -290,7 +303,7 @@ class ComparisonDialog(tk.Toplevel):
         
         # Título
         title_label = tk.Label(content,
-                              text="⚖️ Comparación de Criterios de Umbral",
+                              text="⚖️ Comparación de Métodos Diagnósticos",
                               font=('Segoe UI', 16, 'bold'),
                               fg=COLORS['primary'],
                               bg=COLORS['background'])
@@ -377,7 +390,7 @@ Sensibilidad: {metricas['sensibilidad']:.3f} | Especificidad: {metricas['especif
         content = rec_frame.inner_frame
         
         tk.Label(content,
-                text="🎯 Recomendación Final",
+                text="🎯 Recomendación Clínica - Centro Médico Ñielol",
                 font=('Segoe UI', 14, 'bold'),
                 fg='white',
                 bg=COLORS['success']).pack(pady=(10, 5))
@@ -483,7 +496,7 @@ class RGBvsPCADialog(tk.Toplevel):
             clasificador_pca: Clasificador PCA para obtener información adicional
         """
         super().__init__(parent)
-        self.title("Comparación RGB vs PCA")
+        self.title("Centro Médico Ñielol - Comparación de Métodos Diagnósticos")
         self.geometry(f"{DESIGN['dialog_width']}x{DESIGN['dialog_height']}")
         self.configure(bg=COLORS['background'])
         self.minsize(650, 500)
@@ -620,7 +633,7 @@ class RGBvsPCADialog(tk.Toplevel):
         
         # Título de la sección
         tk.Label(content,
-                text="📄 Justificación Metodológica PCA",
+                text="📄 Fundamento Metodológico - Análisis PCA",
                 font=('Segoe UI', 12, 'bold'),
                 fg=COLORS['primary'],
                 bg=COLORS['card_bg'],

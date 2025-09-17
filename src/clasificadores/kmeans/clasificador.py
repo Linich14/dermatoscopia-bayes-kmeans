@@ -2,7 +2,7 @@
 Clasificador K-Means para análisis dermatoscópico no supervisado.
 
 Este módulo implementa el algoritmo K-Means aplicado a imágenes dermatoscópicas
-según los requisitos de la pauta del proyecto.
+según los requisitos del proyecto.
 
 FUNCIONALIDAD PRINCIPAL:
 - Aplicar K-Means sobre cada imagen del conjunto de test
@@ -10,7 +10,7 @@ FUNCIONALIDAD PRINCIPAL:
 - Reportar la mejor combinación encontrada
 - Integración con la interfaz gráfica del proyecto
 
-REQUISITOS CUMPLIDOS (según pauta):
+REQUISITOS CUMPLIDOS:
 ✅ Aplicar K-Means sobre cada imagen del conjunto de test
 ✅ Considerar selección de características  
 ✅ Reportar resultado obtenido con mejor combinación de características

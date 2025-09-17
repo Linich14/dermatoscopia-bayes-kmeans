@@ -58,7 +58,7 @@ class VentanaPrincipalModular(tk.Tk):
         super().__init__()
         
         # Configuración básica
-        self.title("Análisis Dermatoscópico")
+        self.title("Centro Médico Ñielol - Sistema de Análisis Dermatoscópico")
         self.geometry("1280x900")
         self.configure(**STYLES['root'])
         
@@ -122,19 +122,36 @@ class VentanaPrincipalModular(tk.Tk):
         header.pack(fill=tk.X)
         header.pack_propagate(False)
         
+        # Título principal centrado
         title = tk.Label(header,
-                        text="Análisis de Imágenes Dermatoscópicas",
+                        text="Centro Médico Ñielol - Diagnóstico Dermatológico Asistido",
                         fg='white',
                         bg=COLORS['primary'],
                         font=('Segoe UI', 16, 'bold'))
         title.place(relx=0.5, rely=0.5, anchor='center')
+        
+        # Subtítulo en la esquina derecha
+        subtitle = tk.Label(header,
+                          text="Unidad de Dermatología",
+                          fg='white',
+                          bg=COLORS['primary'],
+                          font=('Segoe UI', 10))
+        subtitle.place(relx=0.98, rely=0.7, anchor='e')
+        
+        # Información adicional en la esquina izquierda
+        info_label = tk.Label(header,
+                            text="🏥 Sistema de Apoyo Diagnóstico",
+                            fg='white',
+                            bg=COLORS['primary'],
+                            font=('Segoe UI', 10))
+        info_label.place(relx=0.02, rely=0.7, anchor='w')
     
     def _create_sidebar(self, parent):
         """Crea el panel lateral con controles."""
         # Contenedor principal del sidebar
         sidebar_container = tk.Frame(parent, **STYLES['sidebar'])
         sidebar_container.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
-        sidebar_container.pack_propagate(False)
+        sidebar_container.configure(width=DESIGN['sidebar_width'])
         
         # Frame scrollable
         self.sidebar_scroll = ScrollableFrame(sidebar_container)
@@ -157,7 +174,10 @@ class VentanaPrincipalModular(tk.Tk):
                                      text="Área de análisis",
                                      bg=COLORS['background'],
                                      fg=COLORS['text'],
-                                     font=('Segoe UI', 10, 'bold'))
+                                     font=('Segoe UI', 10, 'bold'),
+                                     relief='solid',
+                                     borderwidth=1,
+                                     highlightbackground=COLORS['border'])
         section_frame.pack(fill=tk.X, padx=5, pady=10)
         
         # Botones de área
@@ -172,11 +192,11 @@ class VentanaPrincipalModular(tk.Tk):
                               command=lambda v=value: self._select_area(v),
                               background=color,
                               activebackground=COLORS['primary_dark'],
-                              width=DESIGN['content_width'] - 40,  # -40 para el padding
+                              width=320,  # Reducido para dar margen
                               height=DESIGN['button_height'],
                               variable=self.area_var,
                               value=value)
-            btn.pack(pady=5, padx=10)
+            btn.pack(pady=5, padx=20)
     
     def _create_channel_section(self, parent):
         """Crea la sección de selección de canal."""
@@ -184,7 +204,10 @@ class VentanaPrincipalModular(tk.Tk):
                                      text="Canal de color",
                                      bg=COLORS['background'],
                                      fg=COLORS['text'],
-                                     font=('Segoe UI', 10, 'bold'))
+                                     font=('Segoe UI', 10, 'bold'),
+                                     relief='solid',
+                                     borderwidth=1,
+                                     highlightbackground=COLORS['border'])
         section_frame.pack(fill=tk.X, padx=5, pady=10)
         
         # Botones de canal
@@ -200,11 +223,11 @@ class VentanaPrincipalModular(tk.Tk):
                               command=lambda v=value: self._select_channel(v),
                               background=color,
                               activebackground=COLORS['primary_dark'],
-                              width=DESIGN['content_width'] - 40,  # -40 para el padding
+                              width=320,  # Reducido para dar margen
                               height=DESIGN['button_height'],
                               variable=self.canal_var,
                               value=value)
-            btn.pack(pady=5, padx=10)
+            btn.pack(pady=5, padx=20)
     
     def _create_actions_section(self, parent):
         """Crea la sección de acciones generales."""
@@ -212,16 +235,19 @@ class VentanaPrincipalModular(tk.Tk):
                                      text="Acciones",
                                      bg=COLORS['background'],
                                      fg=COLORS['text'],
-                                     font=('Segoe UI', 10, 'bold'))
+                                     font=('Segoe UI', 10, 'bold'),
+                                     relief='solid',
+                                     borderwidth=1,
+                                     highlightbackground=COLORS['border'])
         section_frame.pack(fill=tk.X, padx=5, pady=10)
         
         reset_btn = RoundedButton(section_frame,
                                 text="🔄 Reiniciar",
                                 command=self._reset_values,
                                 background=COLORS['secondary'],
-                                width=180,
+                                width=320,
                                 height=35)
-        reset_btn.pack(pady=5, padx=10)
+        reset_btn.pack(pady=5, padx=20)
     
     def _create_classifier_section(self, parent):
         """
@@ -246,10 +272,13 @@ class VentanaPrincipalModular(tk.Tk):
         
         Crea la sección del clasificador Bayesiano."""
         section_frame = tk.LabelFrame(parent,
-                                     text="Clasificador Bayesiano RGB + PCA",
+                                     text="Sistema de Diagnóstico Bayesiano",
                                      bg=COLORS['background'],
                                      fg=COLORS['text'],
-                                     font=('Segoe UI', 10, 'bold'))
+                                     font=('Segoe UI', 10, 'bold'),
+                                     relief='solid',
+                                     borderwidth=1,
+                                     highlightbackground=COLORS['border'])
         section_frame.pack(fill=tk.X, padx=5, pady=10)
         
         # Checkbox para usar PCA
@@ -257,7 +286,7 @@ class VentanaPrincipalModular(tk.Tk):
         pca_frame.pack(fill=tk.X, padx=10, pady=(10, 5))
         
         pca_check = tk.Checkbutton(pca_frame,
-                                  text="🔬 Usar PCA (Reducción Dimensional)",
+                                  text="🔬 Análisis de Componentes Principales (PCA)",
                                   variable=self.usar_pca_var,
                                   command=self._toggle_pca_controls,
                                   font=('Segoe UI', 9, 'bold'),
@@ -274,51 +303,53 @@ class VentanaPrincipalModular(tk.Tk):
                 text="Criterio selección componentes:",
                 font=('Segoe UI', 8),
                 fg=COLORS['text'],
-                bg=COLORS['accent_light']).pack(fill=tk.X, padx=10, pady=(5, 2))
+                bg=COLORS['accent_light']).pack(fill=tk.X, padx=20, pady=(5, 2))
         
         criterio_pca_combo = ttk.Combobox(self.pca_controls_frame,
                                          textvariable=self.criterio_pca_var,
                                          values=['varianza', 'codo', 'discriminativo'],
                                          state='readonly',
-                                         font=('Segoe UI', 8))
-        criterio_pca_combo.pack(fill=tk.X, padx=10, pady=(0, 5))
+                                         font=('Segoe UI', 8),
+                                         width=20)
+        criterio_pca_combo.pack(padx=20, pady=(0, 5))
         
         # Botón de justificación PCA
         justificar_btn = RoundedButton(self.pca_controls_frame,
-                                     text="📄 Ver Justificación PCA",
+                                     text="📄 Información Metodológica",
                                      command=self._show_pca_justification,
                                      background=COLORS['info'],
-                                     width=160,
+                                     width=300,
                                      height=25)
-        justificar_btn.pack(pady=2, padx=10)
+        justificar_btn.pack(pady=2, padx=20)
         
         # Selector de criterio de umbral
         tk.Label(section_frame,
-                text="Criterio de umbral:",
+                text="Criterio diagnóstico:",
                 font=('Segoe UI', 9),
                 fg=COLORS['text'],
-                bg=COLORS['background']).pack(fill=tk.X, padx=10, pady=(10, 5))
+                bg=COLORS['background']).pack(fill=tk.X, padx=20, pady=(10, 5))
         
         criterio_combo = ttk.Combobox(section_frame,
                                      textvariable=self.criterio_var,
                                      values=['youden', 'equal_error', 'prior_balanced'],
                                      state='readonly',
-                                     font=('Segoe UI', 9))
-        criterio_combo.pack(fill=tk.X, padx=10, pady=(0, 10))
+                                     font=('Segoe UI', 9),
+                                     width=25)
+        criterio_combo.pack(padx=20, pady=(0, 10))
         
         # Indicador de estado
         self.status_indicator = StatusIndicator(section_frame,
                                               bg=COLORS['background'])
-        self.status_indicator.pack(fill=tk.X, padx=10, pady=5)
+        self.status_indicator.pack(fill=tk.X, padx=20, pady=5)
         
         # Texto de progreso
         self.progress_text = tk.Label(section_frame,
-                                    text="Listo para entrenar",
+                                    text="Sistema listo para entrenamiento",
                                     font=('Segoe UI', 9),
                                     fg=COLORS['text'],
                                     bg=COLORS['background'],
                                     wraplength=180)
-        self.progress_text.pack(fill=tk.X, padx=10, pady=5)
+        self.progress_text.pack(fill=tk.X, padx=20, pady=5)
         
         # Botones de acción
         classifier_actions = [
@@ -336,9 +367,9 @@ class VentanaPrincipalModular(tk.Tk):
                               command=command,
                               background=color,
                               activebackground=COLORS['primary_dark'],
-                              width=180,
+                              width=320,
                               height=30)
-            btn.pack(pady=3, padx=10)
+            btn.pack(pady=3, padx=20)
     
     def _create_main_area(self, parent):
         """Crea el área principal para visualización."""
@@ -392,13 +423,13 @@ class VentanaPrincipalModular(tk.Tk):
         
         # Actualizar UI
         self.status_indicator.set_state('idle', 'Listo')
-        self.progress_text.configure(text="Listo para entrenar")
+        self.progress_text.configure(text="Sistema listo para entrenamiento")
         
         # Actualizar estado del comparador
         if hasattr(self, 'comparador_status'):
             self.comparador_status.set_state('idle', 'Listo')
         if hasattr(self, 'comparador_progress_text'):
-            self.comparador_progress_text.configure(text="Listo para comparar")
+            self.comparador_progress_text.configure(text="Sistema listo para análisis comparativo")
         
         self.update_histogram()
         
@@ -454,7 +485,7 @@ class VentanaPrincipalModular(tk.Tk):
         *** SECCIÓN K-MEANS CLASIFICACIÓN NO SUPERVISADA ***
         
         Crea controles para configurar y ejecutar análisis K-Means según
-        requisitos de la pauta del proyecto.
+        los requisitos del proyecto.
         
         FUNCIONALIDAD:
         - Selección de combinación de características
@@ -467,7 +498,10 @@ class VentanaPrincipalModular(tk.Tk):
                                      text="🎯 K-Means (Clasificación No Supervisada)",
                                      bg=COLORS['background'],
                                      fg=COLORS['text'],
-                                     font=('Segoe UI', 10, 'bold'))
+                                     font=('Segoe UI', 10, 'bold'),
+                                     relief='solid',
+                                     borderwidth=1,
+                                     highlightbackground=COLORS['border'])
         section_frame.pack(fill=tk.X, padx=5, pady=10)
         
 
@@ -477,7 +511,7 @@ class VentanaPrincipalModular(tk.Tk):
                 text="Combinación de características:",
                 font=('Segoe UI', 9),
                 fg=COLORS['text'],
-                bg=COLORS['background']).pack(fill=tk.X, padx=10, pady=(10, 2))
+                bg=COLORS['background']).pack(fill=tk.X, padx=20, pady=(10, 2))
         
         caracteristicas_combo = ttk.Combobox(section_frame,
                                            textvariable=self.kmeans_caracteristicas_var,
@@ -490,22 +524,24 @@ class VentanaPrincipalModular(tk.Tk):
                                                'Auto_Evaluar_Todas'
                                            ],
                                            state='readonly',
-                                           font=('Segoe UI', 8))
-        caracteristicas_combo.pack(fill=tk.X, padx=10, pady=(0, 5))
+                                           font=('Segoe UI', 8),
+                                           width=20)
+        caracteristicas_combo.pack(padx=20, pady=(0, 5))
         
         # Configuración de clusters
         tk.Label(section_frame,
                 text="Números de clusters a probar:",
                 font=('Segoe UI', 9),
                 fg=COLORS['text'],
-                bg=COLORS['background']).pack(fill=tk.X, padx=10, pady=(5, 2))
+                bg=COLORS['background']).pack(fill=tk.X, padx=20, pady=(5, 2))
         
         clusters_entry = tk.Entry(section_frame,
                                  textvariable=self.kmeans_clusters_var,
                                  font=('Segoe UI', 8),
                                  bg=COLORS['card_bg'],
-                                 fg=COLORS['text'])
-        clusters_entry.pack(fill=tk.X, padx=10, pady=(0, 5))
+                                 fg=COLORS['text'],
+                                 width=15)
+        clusters_entry.pack(padx=20, pady=(0, 5))
         
         # Checkbox para evaluación automática
         auto_check = tk.Checkbutton(section_frame,
@@ -515,7 +551,7 @@ class VentanaPrincipalModular(tk.Tk):
                                    fg=COLORS['text'],
                                    bg=COLORS['background'],
                                    selectcolor=COLORS['background'])
-        auto_check.pack(fill=tk.X, padx=10, pady=5)
+        auto_check.pack(fill=tk.X, padx=20, pady=5)
         
         # Botones de acción K-Means
         kmeans_actions = [
@@ -530,9 +566,9 @@ class VentanaPrincipalModular(tk.Tk):
                               command=command,
                               background=color,
                               activebackground=COLORS['primary_dark'],
-                              width=180,
+                              width=320,
                               height=30)
-            btn.pack(pady=3, padx=10)
+            btn.pack(pady=3, padx=20)
     
     def _create_comparador_triple_section(self, parent):
         """
@@ -552,7 +588,10 @@ class VentanaPrincipalModular(tk.Tk):
                                      text="⚖️ Comparador Triple (RGB + PCA + K-Means)",
                                      bg=COLORS['background'],
                                      fg=COLORS['text'],
-                                     font=('Segoe UI', 10, 'bold'))
+                                     font=('Segoe UI', 10, 'bold'),
+                                     relief='solid',
+                                     borderwidth=1,
+                                     highlightbackground=COLORS['border'])
         section_frame.pack(fill=tk.X, padx=5, pady=10)
         
         # Descripción del comparador
@@ -563,11 +602,11 @@ class VentanaPrincipalModular(tk.Tk):
                              bg=COLORS['background'],
                              justify='center',
                              wraplength=160)
-        desc_label.pack(fill=tk.X, padx=10, pady=(10, 5))
+        desc_label.pack(fill=tk.X, padx=20, pady=(10, 5))
         
         # Opciones de configuración
         config_frame = tk.Frame(section_frame, bg=COLORS['accent_light'])
-        config_frame.pack(fill=tk.X, padx=5, pady=5)
+        config_frame.pack(fill=tk.X, padx=15, pady=5)
         
         # Checkbox para ejecución paralela
         paralelo_check = tk.Checkbutton(config_frame,
@@ -577,7 +616,7 @@ class VentanaPrincipalModular(tk.Tk):
                                        fg=COLORS['text'],
                                        bg=COLORS['accent_light'],
                                        selectcolor=COLORS['accent_light'])
-        paralelo_check.pack(fill=tk.X, padx=10, pady=2)
+        paralelo_check.pack(fill=tk.X, padx=15, pady=2)
         
         # Checkbox para métricas detalladas
         metricas_check = tk.Checkbutton(config_frame,
@@ -587,20 +626,20 @@ class VentanaPrincipalModular(tk.Tk):
                                        fg=COLORS['text'],
                                        bg=COLORS['accent_light'],
                                        selectcolor=COLORS['accent_light'])
-        metricas_check.pack(fill=tk.X, padx=10, pady=2)
+        metricas_check.pack(fill=tk.X, padx=15, pady=2)
         
         # Indicador de progreso para comparador triple
         self.comparador_status = StatusIndicator(section_frame, bg=COLORS['background'])
-        self.comparador_status.pack(fill=tk.X, padx=10, pady=5)
+        self.comparador_status.pack(fill=tk.X, padx=20, pady=5)
         
         # Texto de progreso específico para comparador
         self.comparador_progress_text = tk.Label(section_frame,
-                                                text="Listo para comparar",
+                                                text="Sistema listo para análisis comparativo",
                                                 font=('Segoe UI', 8),
                                                 fg=COLORS['text'],
                                                 bg=COLORS['background'],
                                                 wraplength=160)
-        self.comparador_progress_text.pack(fill=tk.X, padx=10, pady=2)
+        self.comparador_progress_text.pack(fill=tk.X, padx=20, pady=2)
         
         # Botones de acción del comparador
         comparador_actions = [
@@ -616,9 +655,9 @@ class VentanaPrincipalModular(tk.Tk):
                               command=command,
                               background=color,
                               activebackground=COLORS['primary_dark'],
-                              width=180,
+                              width=320,
                               height=30)
-            btn.pack(pady=3, padx=10)
+            btn.pack(pady=3, padx=20)
     
     def _execute_kmeans(self):
         """Ejecuta el análisis K-Means completo."""

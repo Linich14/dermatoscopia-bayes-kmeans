@@ -26,9 +26,9 @@ COLORS = {
 DESIGN = {
     'border_radius': 6,        # Radio de bordes redondeados
     'card_padding': 15,        # Padding mínimo de las tarjetas
-    'sidebar_width': 320,      # Ancho mínimo del sidebar
+    'sidebar_width': 400,      # Ancho mínimo del sidebar
     'sidebar_padding': 15,     # Padding interno del sidebar
-    'content_width': 290,      # Ancho efectivo para contenido
+    'content_width': 370,      # Ancho efectivo para contenido
     'header_height': 50,       # Altura del header
     'button_height': 35,       # Altura mínima de los botones
     'section_height': 30,      # Altura para títulos de sección
@@ -72,7 +72,6 @@ STYLES = {
     },
     'sidebar': {
         'background': COLORS['sidebar_bg'],
-        'width': DESIGN['sidebar_width'],
         'padx': DESIGN['sidebar_padding'],
         'pady': DESIGN['sidebar_padding']
     },

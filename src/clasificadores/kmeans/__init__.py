@@ -2,7 +2,7 @@
 Módulo de clasificación no supervisada K-Means para análisis dermatoscópico.
 
 Este módulo implementa el algoritmo K-Means aplicado a imágenes dermatoscópicas
-con selección automática de características según los requisitos de la pauta.
+con selección automática de características según los requisitos del proyecto.
 
 FUNCIONES PRINCIPALES:
 - Aplicar K-Means sobre conjunto de test con selección de características
@@ -14,7 +14,7 @@ ESTRUCTURA DEL MÓDULO:
 - clasificador.py: Implementación principal del clasificador K-Means
 - seleccion_caracteristicas.py: Sistema modular de selección de características
 
-REQUISITOS CUMPLIDOS (según pauta):
+REQUISITOS CUMPLIDOS:
 ✅ Aplicar K-Means sobre cada imagen del conjunto de test
 ✅ Considerar selección de características
 ✅ Reportar resultado con mejor combinación de características

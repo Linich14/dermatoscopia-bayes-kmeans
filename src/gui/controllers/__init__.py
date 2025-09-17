@@ -126,7 +126,7 @@ class ClassifierController:
         """
         def train_worker():
             try:
-                self._update_status('working', 'Cargando datos...')
+                self._update_status('working', 'Preparando datos clínicos...')
                 
                 # Cargar datos si no están disponibles
                 if not self.train_data:
@@ -134,7 +134,7 @@ class ClassifierController:
                 
                 # Seleccionar tipo de clasificador
                 if usar_pca:
-                    self._update_status('working', 'Entrenando clasificador Bayesiano + PCA...')
+                    self._update_status('working', 'Entrenando sistema diagnóstico PCA...')
                     from src.clasificadores.bayesiano import ClasificadorBayesianoPCA
                     self.clasificador = ClasificadorBayesianoPCA(
                         criterio_umbral=criterio_umbral,
@@ -143,7 +143,7 @@ class ClassifierController:
                     )
                     tipo_clasificador = f"Bayesiano + PCA ({criterio_pca})"
                 else:
-                    self._update_status('working', 'Entrenando clasificador Bayesiano RGB...')
+                    self._update_status('working', 'Entrenando sistema diagnóstico RGB...')
                     from src.clasificadores.bayesiano import ClasificadorBayesianoRGB
                     self.clasificador = ClasificadorBayesianoRGB(criterio_umbral=criterio_umbral)
                     tipo_clasificador = "Bayesiano RGB"
@@ -167,7 +167,7 @@ class ClassifierController:
                     progreso_msg = f"✅ {tipo_clasificador}\\nCriterio: {criterio_umbral}\\nUmbral: {parametros['umbral']:.4f}"
                 
                 # Actualizar UI con éxito
-                self._update_status('success', 'Entrenamiento completado')
+                self._update_status('success', 'Sistema entrenado correctamente')
                 self._update_progress(progreso_msg)
                 
             except Exception as e:
@@ -190,7 +190,7 @@ class ClassifierController:
         
         def evaluate_worker():
             try:
-                self._update_status('working', 'Evaluando modelo...')
+                self._update_status('working', 'Realizando análisis diagnóstico...')
                 
                 # Usar datos de test o validación
                 test_data = self.test_data or self.val_data
@@ -204,7 +204,7 @@ class ClassifierController:
                 # Mostrar resultados en UI principal
                 self.parent.after(0, lambda: self._show_evaluation_results(metricas, parametros))
                 
-                self._update_status('success', 'Evaluación completada')
+                self._update_status('success', 'Análisis completado')
                 
             except Exception as e:
                 self._update_status('error', f'Error: {str(e)[:50]}...')
@@ -220,7 +220,7 @@ class ClassifierController:
         """
         def compare_worker():
             try:
-                self._update_status('working', 'Comparando criterios...')
+                self._update_status('working', 'Comparando métodos diagnósticos...')
                 
                 # Cargar datos si no están disponibles
                 if not self.train_data:
@@ -274,7 +274,7 @@ class ClassifierController:
             if not archivo:
                 return
             
-            self._update_status('working', 'Clasificando imagen...')
+            self._update_status('working', 'Procesando imagen dermatológica...')
             
             # Cargar y procesar imagen
             imagen_pil = Image.open(archivo).convert('RGB')
@@ -287,7 +287,7 @@ class ClassifierController:
             # Mostrar resultado
             self._show_classification_result(imagen_array, mascara_pred, archivo)
             
-            self._update_status('success', 'Clasificación completada')
+            self._update_status('success', 'Diagnóstico completado')
             
         except Exception as e:
             self._update_status('error', f'Error: {str(e)[:50]}...')
@@ -311,7 +311,7 @@ class ClassifierController:
     
     def _show_comparison_results(self, resultados: Dict[str, Dict[str, Any]]):
         """Muestra los resultados de comparación en un diálogo."""
-        dialog = ComparisonDialog(self.parent, resultados)
+        dialog = ComparisonDialog(self.parent, resultados, "Centro Médico Ñielol - Comparación de Criterios")
     
     def _show_classification_result(self, imagen_original, mascara_pred, nombre_archivo):
         """Muestra el resultado de clasificación usando la función modular."""
@@ -350,7 +350,7 @@ class ClassifierController:
         """
         def compare_worker():
             try:
-                self._update_status('working', 'Comparando RGB vs PCA...')
+                self._update_status('working', 'Analizando métodos RGB vs PCA...')
                 
                 # Cargar datos si no están disponibles
                 if not self.train_data:
@@ -424,7 +424,7 @@ class ClassifierController:
         """
         *** ANÁLISIS ROC COMPLETO ***
         
-        Ejecuta análisis ROC comparativo entre RGB y PCA según requisitos de la pauta:
+        Ejecuta análisis ROC comparativo entre RGB y PCA:
         1. Genera curvas ROC para ambos clasificadores
         2. Calcula AUC y puntos de operación
         3. Muestra visualización comparativa en área principal
@@ -446,7 +446,7 @@ class ClassifierController:
                 usar_pca = hasattr(self.clasificador, 'clasificador_base')
                 criterio_actual = self.clasificador.criterio_umbral
                 
-                self._update_status('working', 'Entrenando clasificadores para comparación...')
+                self._update_status('working', 'Preparando análisis comparativo...')
                 
                 # *** ENTRENAR AMBOS CLASIFICADORES PARA COMPARACIÓN ***
                 from src.clasificadores.bayesiano.clasificador import ClasificadorBayesianoRGB
@@ -547,7 +547,7 @@ class ClassifierController:
         """
         *** EJECUTAR ANÁLISIS K-MEANS COMPLETO ***
         
-        Ejecuta análisis K-Means según requisitos de la pauta:
+        Ejecuta análisis K-Means:
         - Aplica K-Means sobre conjunto de test
         - Evalúa combinaciones de características
         - Reporta mejor combinación encontrada
@@ -651,37 +651,137 @@ class ClassifierController:
     
     def _show_best_combination_dialog(self, mejor_combinacion):
         """Muestra diálogo con información de la mejor combinación."""
-        info_texto = f"""🏆 MEJOR COMBINACIÓN DE CARACTERÍSTICAS K-MEANS
-
-📊 Combinación: {mejor_combinacion.nombre_combinacion}
-🎯 Score Total: {mejor_combinacion.score_total:.3f}
-
-📈 MÉTRICAS PROMEDIO:
-"""
+        import tkinter as tk
+        from tkinter import ttk
         
+        # Crear ventana personalizada
+        dialog = tk.Toplevel(self.parent)
+        dialog.title("🏆 Mejor Combinación K-Means")
+        dialog.geometry("600x500")
+        dialog.configure(bg='#FCE4EC')
+        dialog.resizable(True, True)
+        
+        # Centrar ventana
+        dialog.transient(self.parent)
+        dialog.grab_set()
+        
+        # Frame principal con scroll
+        from ..components import ScrollableFrame
+        main_frame = ScrollableFrame(dialog)
+        main_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        content = main_frame.scrollable_frame
+        content.configure(bg='#FCE4EC')
+        
+        # Título principal
+        titulo = tk.Label(content,
+                         text="🏆 MEJOR COMBINACIÓN DE CARACTERÍSTICAS",
+                         font=('Segoe UI', 14, 'bold'),
+                         fg='#D81B60',
+                         bg='#FCE4EC')
+        titulo.pack(pady=(0, 20))
+        
+        # Frame de información principal
+        info_frame = tk.Frame(content, bg='white', relief='solid', borderwidth=1)
+        info_frame.pack(fill='x', pady=(0, 15))
+        
+        # Información básica
+        basic_info = tk.Label(info_frame,
+                             text=f"📊 Combinación: {mejor_combinacion.nombre_combinacion}\n🎯 Score Total: {mejor_combinacion.score_total:.3f}",
+                             font=('Segoe UI', 12, 'bold'),
+                             fg='#212529',
+                             bg='white',
+                             justify='left')
+        basic_info.pack(padx=20, pady=15, anchor='w')
+        
+        # Frame de métricas
+        metricas_frame = tk.Frame(content, bg='#FFE0F0', relief='solid', borderwidth=1)
+        metricas_frame.pack(fill='x', pady=(0, 15))
+        
+        metricas_titulo = tk.Label(metricas_frame,
+                                  text="📈 MÉTRICAS PROMEDIO",
+                                  font=('Segoe UI', 11, 'bold'),
+                                  fg='#D81B60',
+                                  bg='#FFE0F0')
+        metricas_titulo.pack(pady=(10, 5))
+        
+        metricas_text = ""
         for metrica, valor in mejor_combinacion.metricas_promedio.items():
-            info_texto += f"   • {metrica}: {valor:.3f}\n"
+            emoji = {'silhouette_score': '🔸', 'calinski_harabasz': '🔹', 'davies_bouldin': '🔺'}.get(metrica, '•')
+            metricas_text += f"{emoji} {metrica.replace('_', ' ').title()}: {valor:.3f}\n"
         
-        info_texto += f"""
-✅ Mejor imagen: {mejor_combinacion.mejor_imagen}
-⚠️ Imagen más difícil: {mejor_combinacion.peor_imagen}
+        metricas_label = tk.Label(metricas_frame,
+                                 text=metricas_text,
+                                 font=('Segoe UI', 10),
+                                 fg='#212529',
+                                 bg='#FFE0F0',
+                                 justify='left')
+        metricas_label.pack(padx=20, pady=(0, 10), anchor='w')
+        
+        # Frame de resultados detallados
+        detalles_frame = tk.Frame(content, bg='#F8F9FA', relief='solid', borderwidth=1)
+        detalles_frame.pack(fill='x', pady=(0, 15))
+        
+        detalles_titulo = tk.Label(detalles_frame,
+                                  text="📊 RESULTADOS DETALLADOS",
+                                  font=('Segoe UI', 11, 'bold'),
+                                  fg='#D81B60',
+                                  bg='#F8F9FA')
+        detalles_titulo.pack(pady=(10, 5))
+        
+        detalles_text = f"""✅ Mejor imagen: {getattr(mejor_combinacion, 'mejor_imagen', 'N/A')}
+⚠️ Imagen más difícil: {getattr(mejor_combinacion, 'peor_imagen', 'N/A')}
+📊 Imágenes procesadas: {len(getattr(mejor_combinacion, 'resultados_imagenes', []))}"""
+        
+        detalles_label = tk.Label(detalles_frame,
+                                 text=detalles_text,
+                                 font=('Segoe UI', 10),
+                                 fg='#212529',
+                                 bg='#F8F9FA',
+                                 justify='left')
+        detalles_label.pack(padx=20, pady=(0, 10), anchor='w')
+        
+        # Frame de interpretación
+        interp_frame = tk.Frame(content, bg='#E8F5E8', relief='solid', borderwidth=1)
+        interp_frame.pack(fill='x', pady=(0, 15))
+        
+        interp_titulo = tk.Label(interp_frame,
+                                text="💡 INTERPRETACIÓN",
+                                font=('Segoe UI', 11, 'bold'),
+                                fg='#2E7D32',
+                                bg='#E8F5E8')
+        interp_titulo.pack(pady=(10, 5))
+        
+        interpretacion = "Excelente" if mejor_combinacion.score_total > 0.7 else "Buena" if mejor_combinacion.score_total > 0.5 else "Moderada"
+        
+        interp_text = f"""🎯 Calidad: {interpretacion} separación de clusters
 
-📊 Imágenes procesadas: {len(mejor_combinacion.resultados_imagenes)}
-
-💡 INTERPRETACIÓN:
+📋 Escala de interpretación:
 • Score > 0.7: Excelente separación
-• Score > 0.5: Buena separación
+• Score > 0.5: Buena separación  
 • Score > 0.3: Separación moderada
+• Score ≤ 0.3: Separación pobre
 
-Esta combinación está lista para uso según requisitos de la pauta.
-        """
+✅ Esta combinación está lista para uso en clasificación."""
         
-        from tkinter import messagebox
-        messagebox.showinfo(
-            "Mejor Combinación K-Means",
-            info_texto,
-            parent=self.parent
-        )
+        interp_label = tk.Label(interp_frame,
+                               text=interp_text,
+                               font=('Segoe UI', 10),
+                               fg='#212529',
+                               bg='#E8F5E8',
+                               justify='left')
+        interp_label.pack(padx=20, pady=(0, 10), anchor='w')
+        
+        # Botón de cerrar
+        close_btn = tk.Button(content,
+                             text="✅ Cerrar",
+                             command=dialog.destroy,
+                             font=('Segoe UI', 11, 'bold'),
+                             bg='#4CAF50',
+                             fg='white',
+                             relief='flat',
+                             padx=30,
+                             pady=10)
+        close_btn.pack(pady=20)
     
     def test_selected_kmeans(self):
         """
@@ -891,18 +991,34 @@ Métricas: Silhouette {mejor_combinacion.metricas_promedio.get('silhouette', 0):
         from matplotlib.figure import Figure
         from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
         import numpy as np
+        import tkinter as tk
         
         # Limpiar área de gráficos
         for widget in self.parent.graph_frame.inner_frame.winfo_children():
             widget.destroy()
         
-        # Crear figura
-        fig = Figure(figsize=(14, 10), facecolor='white')
+        # Crear ScrollableFrame para el contenido
+        from ..components import ScrollableFrame
+        scroll_container = ScrollableFrame(self.parent.graph_frame.inner_frame)
+        scroll_container.pack(fill='both', expand=True, padx=10, pady=10)
+        content_frame = scroll_container.scrollable_frame
+        content_frame.configure(bg='white')
+        
+        # Título de la visualización
+        titulo = tk.Label(content_frame,
+                         text=f"🔬 PRUEBA K-MEANS: {image_data['nombre']}",
+                         font=('Segoe UI', 14, 'bold'),
+                         fg='#D81B60',
+                         bg='white')
+        titulo.pack(pady=(0, 15))
+        
+        # Crear figura más compacta
+        fig = Figure(figsize=(16, 12), facecolor='white', dpi=80)
         
         # Subplot 1: Imagen original
         ax1 = fig.add_subplot(2, 3, 1)
         ax1.imshow(image_data['imagen'])
-        ax1.set_title(f'Imagen Original: {image_data["nombre"]}', fontweight='bold')
+        ax1.set_title(f'Imagen Original: {image_data["nombre"]}', fontweight='bold', fontsize=10)
         ax1.axis('off')
         
         # Subplot 2: Imagen segmentada K-Means
@@ -913,59 +1029,58 @@ Métricas: Silhouette {mejor_combinacion.metricas_promedio.get('silhouette', 0):
                 image_data['imagen'], mejor_combinacion, k_clusters
             )
             ax2.imshow(imagen_segmentada, cmap='gray')
-            ax2.set_title('Segmentación K-Means\n(Blanco=Lesión, Negro=Sano)', fontweight='bold')
+            ax2.set_title('Segmentación K-Means\n(Blanco=Lesión, Negro=Sano)', fontweight='bold', fontsize=10)
             ax2.axis('off')
         except Exception as e:
             print(f"Error generando imagen segmentada: {e}")
             ax2.text(0.5, 0.5, f'Error generando\nsegmentación:\n{str(e)[:50]}...', 
-                    ha='center', va='center', transform=ax2.transAxes)
-            ax2.set_title('Error en Segmentación', fontweight='bold')
+                    ha='center', va='center', transform=ax2.transAxes, fontsize=8)
+            ax2.set_title('Error en Segmentación', fontweight='bold', fontsize=10)
         
         # Subplot 3: Puntos expandidos coloreados por cluster
         ax3 = fig.add_subplot(2, 3, 3)
         if caracteristicas_expandidas.shape[1] >= 2:
             # Usar las primeras 2 dimensiones de los puntos expandidos
             scatter = ax3.scatter(caracteristicas_expandidas[:, 0], caracteristicas_expandidas[:, 1], 
-                                c=etiquetas, cmap='viridis', alpha=0.7, s=50)
-            ax3.set_title(f'Puntos K-Means (n={len(caracteristicas_expandidas)})', fontweight='bold')
-            ax3.set_xlabel('Característica 1')
-            ax3.set_ylabel('Característica 2')
+                                c=etiquetas, cmap='viridis', alpha=0.7, s=30)
+            ax3.set_title(f'Puntos K-Means (n={len(caracteristicas_expandidas)})', fontweight='bold', fontsize=10)
+            ax3.set_xlabel('Característica 1', fontsize=9)
+            ax3.set_ylabel('Característica 2', fontsize=9)
             
             # Agregar centroides
             if centroids.shape[1] >= 2:
                 ax3.scatter(centroids[:, 0], centroids[:, 1], 
-                          c='red', marker='x', s=200, linewidths=3, label='Centroides')
-                ax3.legend()
+                          c='red', marker='x', s=150, linewidths=2, label='Centroides')
+                ax3.legend(fontsize=8)
         else:
             ax3.text(0.5, 0.5, f'Puntos expandidos para clustering:\n{len(caracteristicas_expandidas)} puntos\n{caracteristicas_expandidas.shape[1]} dimensiones', 
-                    ha='center', va='center', transform=ax3.transAxes)
-            ax3.set_title('Puntos K-Means', fontweight='bold')
+                    ha='center', va='center', transform=ax3.transAxes, fontsize=8)
+            ax3.set_title('Puntos K-Means', fontweight='bold', fontsize=10)
         
         # Subplot 4: Distribución de clusters
         ax4 = fig.add_subplot(2, 3, 4)
         unique_labels, counts = np.unique(etiquetas, return_counts=True)
         colors = plt.cm.Set3(np.linspace(0, 1, len(unique_labels)))
         ax4.pie(counts, labels=[f'Cluster {i}' for i in unique_labels], 
-               autopct='%1.1f%%', colors=colors)
-        ax4.set_title(f'Distribución de Clusters (K={k_clusters})', fontweight='bold')
+               autopct='%1.1f%%', colors=colors, textprops={'fontsize': 9})
+        ax4.set_title(f'Distribución de Clusters (K={k_clusters})', fontweight='bold', fontsize=10)
         
         # Subplot 5: Máscara real (si está disponible)
         ax5 = fig.add_subplot(2, 3, 5)
         if 'mascara' in image_data and image_data['mascara'] is not None:
             ax5.imshow(image_data['mascara'], cmap='gray')
-            ax5.set_title('Máscara Real\n(Ground Truth)', fontweight='bold')
+            ax5.set_title('Máscara Real\n(Ground Truth)', fontweight='bold', fontsize=10)
             ax5.axis('off')
         else:
             ax5.text(0.5, 0.5, 'Máscara real\nno disponible', 
-                    ha='center', va='center', transform=ax5.transAxes)
-            ax5.set_title('Sin Ground Truth', fontweight='bold')
+                    ha='center', va='center', transform=ax5.transAxes, fontsize=9)
+            ax5.set_title('Sin Ground Truth', fontweight='bold', fontsize=10)
         
         # Subplot 6: Información de resultados
         ax6 = fig.add_subplot(2, 3, 6)
         ax6.axis('off')
         
-        result_text = f"""
-RESULTADOS PRUEBA K-MEANS
+        result_text = f"""RESULTADOS PRUEBA K-MEANS
 
 Imagen: {image_data['nombre']}
 Combinación: {mejor_combinacion.nombre_combinacion}
@@ -987,19 +1102,51 @@ Estado: {"Excelente" if silhouette_score > 0.5 else "Bueno" if silhouette_score 
 
 SEGMENTACIÓN:
 • Píxel blanco: Cluster dominante (lesión)
-• Píxel negro: Otros clusters (sano)
-        """
+• Píxel negro: Otros clusters (sano)"""
         
-        ax6.text(0.05, 0.95, result_text, transform=ax6.transAxes,
-                fontsize=9, verticalalignment='top', fontfamily='monospace',
-                bbox=dict(boxstyle='round,pad=0.5', facecolor='lightblue', alpha=0.3))
+        ax6.text(0.02, 0.98, result_text, transform=ax6.transAxes,
+                fontsize=8, verticalalignment='top', fontfamily='monospace',
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='lightblue', alpha=0.7))
         
-        fig.tight_layout(pad=2.0)
+        # Ajustar espaciado para evitar solapamiento
+        fig.tight_layout(pad=1.5)
         
-        # Mostrar en canvas
-        canvas = FigureCanvasTkAgg(fig, master=self.parent.graph_frame.inner_frame)
+        # Frame para el canvas dentro del scroll
+        canvas_frame = tk.Frame(content_frame, bg='white')
+        canvas_frame.pack(fill='both', expand=True, pady=(0, 20))
+        
+        # Mostrar en canvas dentro del scroll
+        canvas = FigureCanvasTkAgg(fig, master=canvas_frame)
         canvas.draw()
         canvas.get_tk_widget().pack(fill='both', expand=True)
+        
+        # Agregar información adicional al final
+        info_adicional_frame = tk.Frame(content_frame, bg='#F0F8FF', relief='solid', borderwidth=1)
+        info_adicional_frame.pack(fill='x', padx=20, pady=(0, 20))
+        
+        info_titulo = tk.Label(info_adicional_frame,
+                              text="ℹ️ INFORMACIÓN ADICIONAL",
+                              font=('Segoe UI', 11, 'bold'),
+                              fg='#2E7D32',
+                              bg='#F0F8FF')
+        info_titulo.pack(pady=5)
+        
+        info_detalle = f"""🔍 Esta prueba aplica la mejor combinación K-Means encontrada ({mejor_combinacion.nombre_combinacion}) 
+sobre una imagen específica del conjunto de test.
+
+📊 El score original de {mejor_combinacion.score_total:.3f} representa el promedio sobre todas las imágenes de entrenamiento.
+📈 El silhouette score actual de {silhouette_score:.3f} muestra qué tan bien se separan los clusters en esta imagen específica.
+
+💡 Una buena segmentación debería mostrar la lesión claramente separada del tejido sano."""
+        
+        info_label = tk.Label(info_adicional_frame,
+                             text=info_detalle,
+                             font=('Segoe UI', 9),
+                             fg='#212529',
+                             bg='#F0F8FF',
+                             justify='left',
+                             wraplength=800)
+        info_label.pack(padx=15, pady=(0, 10))
 
     def _generar_imagen_segmentada_kmeans(self, imagen, mejor_combinacion, k_clusters: int):
         """

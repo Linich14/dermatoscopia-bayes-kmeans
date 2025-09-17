@@ -180,7 +180,7 @@ def mostrar_analisis_roc(frame_grafico, resultados_rgb, resultados_pca, criterio
     *** VISUALIZACIÓN ROC INTEGRADA EN GUI ***
     
     Muestra análisis ROC comparativo directamente en el área principal
-    de la interfaz gráfica, siguiendo los requisitos de la pauta.
+    de la interfaz gráfica, siguiendo los requisitos del proyecto.
     
     REQUISITOS IMPLEMENTADOS:
     1. ✅ Curvas ROC para ambos clasificadores (RGB y PCA)
@@ -352,8 +352,23 @@ def mostrar_resultados_kmeans(frame_grafico, resultados_kmeans, mejor_combinacio
         error_label.pack(expand=True)
         return
     
-    # *** CREAR FIGURA CON SUBPLOTS ***
-    fig = Figure(figsize=(14, 10), facecolor=COLORS['background'])
+    # *** CREAR SCROLL CONTAINER ***
+    from .components import ScrollableFrame
+    scroll_container = ScrollableFrame(frame_grafico)
+    scroll_container.pack(fill='both', expand=True, padx=10, pady=10)
+    content_frame = scroll_container.scrollable_frame
+    content_frame.configure(bg=COLORS['background'])
+    
+    # *** TÍTULO PRINCIPAL ***
+    titulo_principal = tk.Label(content_frame,
+                               text="📊 RESULTADOS ANÁLISIS K-MEANS",
+                               font=('Segoe UI', 14, 'bold'),
+                               fg=COLORS['primary'],
+                               bg=COLORS['background'])
+    titulo_principal.pack(pady=(0, 20))
+    
+    # *** CREAR FIGURA CON SUBPLOTS MÁS COMPACTA ***
+    fig = Figure(figsize=(12, 8), facecolor=COLORS['background'])
     
     # Panel principal con comparación de métricas
     ax_main = fig.add_subplot(2, 2, (1, 2))
@@ -474,65 +489,135 @@ def mostrar_resultados_kmeans(frame_grafico, resultados_kmeans, mejor_combinacio
     ax_metricas.axis('off')
     
     if mejor_combinacion:
-        metricas_text = f"""
-MEJOR COMBINACION K-MEANS
+        # Texto más compacto y organizado
+        metricas_text = f"""MEJOR COMBINACION K-MEANS
 
-Combinacion: {mejor_combinacion.nombre_combinacion}
-Score Total: {mejor_combinacion.score_total:.3f}
+{mejor_combinacion.nombre_combinacion}
+Score: {mejor_combinacion.score_total:.3f}
 
-METRICAS PROMEDIO:
-"""
+METRICAS PROMEDIO:"""
+        
         for metrica, valor in mejor_combinacion.metricas_promedio.items():
-            emoji = {'silhouette_score': '*', 'calinski_harabasz': '+', 'davies_bouldin': '-'}.get(metrica, '>')
-            metricas_text += f"{emoji} {metrica.replace('_', ' ').title()}: {valor:.3f}\n"
+            emoji = {'silhouette_score': '>', 'calinski_harabasz': '+', 'davies_bouldin': '-'}.get(metrica, '*')
+            # Acortar nombres de métricas para evitar corte
+            metrica_names = {
+                'silhouette_score': 'Silhouette',
+                'calinski_harabasz': 'Calinski H.',
+                'davies_bouldin': 'Davies B.',
+                'inercia': 'Inercia'
+            }
+            metrica_corta = metrica_names.get(metrica, metrica.replace('_', ' ').title())
+            metricas_text += f"\n{emoji} {metrica_corta}: {valor:.3f}"
+        
+        # Información adicional más compacta
+        mejor_img = getattr(mejor_combinacion, 'mejor_imagen', 'N/A')
+        peor_img = getattr(mejor_combinacion, 'peor_imagen', 'N/A')
+        total_imgs = len(getattr(mejor_combinacion, 'resultados_imagenes', []))
+        
+        # Acortar nombres de imágenes si son muy largos
+        if len(mejor_img) > 15:
+            mejor_img = mejor_img[:12] + "..."
+        if len(peor_img) > 15:
+            peor_img = peor_img[:12] + "..."
         
         metricas_text += f"""
-Mejor imagen: {mejor_combinacion.mejor_imagen}
-Imagen mas dificil: {mejor_combinacion.peor_imagen}
 
-Total procesadas: {len(mejor_combinacion.resultados_imagenes)}
-        """
+Mejor imagen: {mejor_img}
+Imagen mas dificil: {peor_img}
+
+Total procesadas: {total_imgs}"""
         
-        ax_metricas.text(0.05, 0.95, metricas_text, 
+        # Usar fuente más pequeña y mejor posicionamiento
+        ax_metricas.text(0.02, 0.98, metricas_text, 
                         transform=ax_metricas.transAxes,
-                        fontsize=10, family='Segoe UI',
+                        fontsize=8, family='monospace',
                         verticalalignment='top', horizontalalignment='left',
-                        bbox=dict(boxstyle='round,pad=0.5', 
+                        bbox=dict(boxstyle='round,pad=0.3', 
                                 facecolor=COLORS['card_bg'], 
                                 edgecolor=COLORS['primary'],
                                 alpha=0.9))
     
-    # Ajustar espaciado
-    fig.tight_layout(pad=3.0)
+    # Ajustar espaciado más compacto
+    fig.tight_layout(pad=2.0)
     
-    # *** CREAR CANVAS Y MOSTRAR ***
-    canvas = FigureCanvasTkAgg(fig, master=frame_grafico)
+    # *** CREAR CANVAS Y MOSTRAR EN SCROLL ***
+    canvas_frame = tk.Frame(content_frame, bg=COLORS['background'])
+    canvas_frame.pack(fill='both', expand=True, pady=(0, 20))
+    
+    canvas = FigureCanvasTkAgg(fig, master=canvas_frame)
     canvas.draw()
     canvas.get_tk_widget().pack(fill='both', expand=True)
     
+    # *** SEPARADOR ***
+    separador = tk.Frame(content_frame, height=2, bg=COLORS['border'])
+    separador.pack(fill='x', pady=20)
+    
     # *** PANEL DE INFORMACIÓN TEXTUAL ADICIONAL ***
-    info_frame = tk.Frame(frame_grafico, bg=COLORS['card_bg'], relief='ridge', bd=1)
-    info_frame.pack(fill=tk.X, padx=5, pady=5)
+    info_frame = tk.Frame(content_frame, bg=COLORS['card_bg'], relief='solid', borderwidth=1)
+    info_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
     
     titulo_info = tk.Label(info_frame, 
-                          text="ANALISIS K-MEANS COMPLETADO",
-                          font=('Segoe UI', 10, 'bold'),
+                          text="📋 RESUMEN DEL ANÁLISIS",
+                          font=('Segoe UI', 12, 'bold'),
                           fg=COLORS['primary'],
                           bg=COLORS['card_bg'])
-    titulo_info.pack(pady=5)
+    titulo_info.pack(pady=10)
     
     if mejor_combinacion:
-        resumen_text = f"""
-Analisis ejecutado segun pauta: K-Means aplicado sobre conjunto de test con evaluacion de caracteristicas
-Mejor combinacion identificada: {mejor_combinacion.nombre_combinacion} (Score: {mejor_combinacion.score_total:.3f})
-Interpretacion: {"Excelente" if mejor_combinacion.score_total > 0.7 else "Buena" if mejor_combinacion.score_total > 0.5 else "Moderada"} separacion de clusters
-Requisitos de pauta cumplidos: Aplicacion sobre test set, seleccion de caracteristicas, reporte de mejor combinacion
-        """.strip()
+        # *** INFORMACIÓN PRINCIPAL ***
+        info_principal_frame = tk.Frame(info_frame, bg=COLORS['card_bg'])
+        info_principal_frame.pack(fill='x', padx=20, pady=(0, 15))
         
-        resumen_label = tk.Label(info_frame,
-                               text=resumen_text,
-                               font=('Segoe UI', 9),
-                               fg=COLORS['text'],
-                               bg=COLORS['card_bg'],
-                               justify='left')
-        resumen_label.pack(padx=10, pady=5)
+        # Mejor combinación info
+        mejor_info = tk.Label(info_principal_frame,
+                             text=f"🏆 MEJOR COMBINACIÓN: {mejor_combinacion.nombre_combinacion}",
+                             font=('Segoe UI', 11, 'bold'),
+                             fg=COLORS['success'],
+                             bg=COLORS['card_bg'])
+        mejor_info.pack(anchor='w', pady=2)
+        
+        score_info = tk.Label(info_principal_frame,
+                             text=f"📊 Score Total: {mejor_combinacion.score_total:.3f}",
+                             font=('Segoe UI', 10),
+                             fg=COLORS['text'],
+                             bg=COLORS['card_bg'])
+        score_info.pack(anchor='w', pady=2)
+        
+        interpretacion = "Excelente" if mejor_combinacion.score_total > 0.7 else "Buena" if mejor_combinacion.score_total > 0.5 else "Moderada"
+        interp_info = tk.Label(info_principal_frame,
+                              text=f"🎯 Calidad: {interpretacion} separación de clusters",
+                              font=('Segoe UI', 10),
+                              fg=COLORS['primary'],
+                              bg=COLORS['card_bg'])
+        interp_info.pack(anchor='w', pady=2)
+        
+        # *** MÉTRICAS DETALLADAS ***
+        metricas_frame = tk.Frame(info_frame, bg=COLORS['accent_light'], relief='ridge', borderwidth=1)
+        metricas_frame.pack(fill='x', padx=20, pady=(0, 15))
+        
+        metricas_titulo = tk.Label(metricas_frame,
+                                  text="📈 MÉTRICAS PROMEDIO",
+                                  font=('Segoe UI', 10, 'bold'),
+                                  fg=COLORS['primary'],
+                                  bg=COLORS['accent_light'])
+        metricas_titulo.pack(pady=5)
+        
+        metricas_text = ""
+        for metrica, valor in mejor_combinacion.metricas_promedio.items():
+            emoji = {'silhouette_score': '🔸', 'calinski_harabasz': '🔹', 'davies_bouldin': '🔺'}.get(metrica, '•')
+            metricas_text += f"{emoji} {metrica.replace('_', ' ').title()}: {valor:.3f}\n"
+        
+        if hasattr(mejor_combinacion, 'mejor_imagen') and mejor_combinacion.mejor_imagen:
+            metricas_text += f"\n🎯 Mejor imagen: {mejor_combinacion.mejor_imagen}"
+        if hasattr(mejor_combinacion, 'peor_imagen') and mejor_combinacion.peor_imagen:
+            metricas_text += f"\n⚠️ Imagen más difícil: {mejor_combinacion.peor_imagen}"
+        if hasattr(mejor_combinacion, 'resultados_imagenes') and mejor_combinacion.resultados_imagenes:
+            metricas_text += f"\n📊 Total procesadas: {len(mejor_combinacion.resultados_imagenes)}"
+        
+        metricas_label = tk.Label(metricas_frame,
+                                 text=metricas_text,
+                                 font=('Segoe UI', 9),
+                                 fg=COLORS['text'],
+                                 bg=COLORS['accent_light'],
+                                 justify='left')
+        metricas_label.pack(padx=10, pady=(0, 10))
