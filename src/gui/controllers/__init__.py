@@ -406,6 +406,106 @@ class ClassifierController:
         except Exception as e:
             self._show_error(f"Error obteniendo justificación PCA: {e}")
     
+    def analyze_roc(self):
+        """
+        *** ANÁLISIS ROC COMPLETO ***
+        
+        Ejecuta análisis ROC comparativo entre RGB y PCA según requisitos de la pauta:
+        1. Genera curvas ROC para ambos clasificadores
+        2. Calcula AUC y puntos de operación
+        3. Muestra visualización comparativa en área principal
+        4. Aplica criterio Youden para selección de punto óptimo
+        """
+        if not self.entrenado or not self.clasificador:
+            self._show_error("Debe entrenar un clasificador primero")
+            return
+        
+        def roc_worker():
+            try:
+                self._update_status('working', 'Iniciando análisis ROC...')
+                
+                # Cargar datos de prueba si no están disponibles
+                if not self.test_data:
+                    self._load_data()
+                
+                # Determinar tipo de clasificador actual
+                usar_pca = hasattr(self.clasificador, 'clasificador_base')
+                criterio_actual = self.clasificador.criterio_umbral
+                
+                self._update_status('working', 'Entrenando clasificadores para comparación...')
+                
+                # *** ENTRENAR AMBOS CLASIFICADORES PARA COMPARACIÓN ***
+                from src.clasificadores.bayesiano.clasificador import ClasificadorBayesianoRGB
+                from src.clasificadores.bayesiano.clasificador_pca import ClasificadorBayesianoPCA
+                
+                # Entrenar RGB
+                clasificador_rgb = ClasificadorBayesianoRGB(criterio_umbral=criterio_actual)
+                clasificador_rgb.entrenar(self.train_data)
+                
+                # Entrenar PCA
+                clasificador_pca = ClasificadorBayesianoPCA(
+                    criterio_umbral=criterio_actual,
+                    criterio_pca='varianza',
+                    umbral_varianza=0.95
+                )
+                clasificador_pca.entrenar(self.train_data)
+                
+                self._update_status('working', 'Generando curvas ROC...')
+                
+                # *** GENERAR CURVAS ROC ***
+                resultados_rgb = clasificador_rgb.generar_curva_roc(
+                    self.test_data, "Clasificador Bayesiano RGB"
+                )
+                
+                resultados_pca = clasificador_pca.generar_curva_roc(
+                    self.test_data, "Clasificador Bayesiano PCA"
+                )
+                
+                # *** PREPARAR DATOS PARA VISUALIZACIÓN ***
+                datos_roc = {
+                    'rgb': resultados_rgb,
+                    'pca': resultados_pca,
+                    'criterio': criterio_actual
+                }
+                
+                # Mostrar en área principal
+                self.parent.after(0, lambda: self._show_roc_analysis(datos_roc))
+                
+                self._update_status('success', f'Análisis ROC completado - AUC RGB: {resultados_rgb["auc"]:.3f}, PCA: {resultados_pca["auc"]:.3f}')
+                
+            except Exception as e:
+                self._update_status('error', f'Error en análisis ROC: {str(e)[:50]}...')
+                print(f"Error en análisis ROC: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # Ejecutar en hilo separado
+        thread = threading.Thread(target=roc_worker, daemon=True)
+        thread.start()
+    
+    def _show_roc_analysis(self, datos_roc: Dict[str, Any]):
+        """
+        Muestra el análisis ROC en el área principal de la interfaz.
+        
+        Args:
+            datos_roc: Diccionario con resultados ROC de ambos clasificadores
+        """
+        try:
+            # Importar función de graficado ROC
+            from ..graficos import mostrar_analisis_roc
+            
+            # Mostrar en área principal
+            mostrar_analisis_roc(
+                self.parent.graph_frame.inner_frame,
+                datos_roc['rgb'],
+                datos_roc['pca'],
+                datos_roc['criterio']
+            )
+            
+        except Exception as e:
+            print(f"Error mostrando análisis ROC: {e}")
+            self._show_error(f"Error mostrando gráfico ROC: {e}")
+    
     def _show_rgb_vs_pca_results(self, comparacion: Dict[str, Any], clasificador_pca):
         """Muestra los resultados de comparación RGB vs PCA."""
         dialog = RGBvsPCADialog(self.parent, comparacion, clasificador_pca)

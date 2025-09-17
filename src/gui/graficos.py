@@ -173,3 +173,155 @@ def _guardar_resultado(fig, nombre_archivo):
             messagebox.showinfo("Éxito", f"Resultado guardado en:\n{ruta_completa}")
         except Exception as e:
             messagebox.showerror("Error", f"Error al guardar: {str(e)}")
+
+
+def mostrar_analisis_roc(frame_grafico, resultados_rgb, resultados_pca, criterio):
+    """
+    *** VISUALIZACIÓN ROC INTEGRADA EN GUI ***
+    
+    Muestra análisis ROC comparativo directamente en el área principal
+    de la interfaz gráfica, siguiendo los requisitos de la pauta.
+    
+    REQUISITOS IMPLEMENTADOS:
+    1. ✅ Curvas ROC para ambos clasificadores (RGB y PCA)
+    2. ✅ Valores AUC mostrados en leyenda
+    3. ✅ Puntos de operación marcados según criterio
+    4. ✅ Línea diagonal de referencia (clasificador aleatorio)
+    5. ✅ Interpretación visual clara con colores distintivos
+    
+    Args:
+        frame_grafico: Frame de tkinter donde mostrar el gráfico
+        resultados_rgb: Diccionario con resultados ROC del clasificador RGB
+        resultados_pca: Diccionario con resultados ROC del clasificador PCA  
+        criterio: Criterio usado para selección de punto de operación
+    """
+    # Limpiar frame anterior
+    for widget in frame_grafico.winfo_children():
+        widget.destroy()
+    
+    # Crear figura con estilo de la interfaz
+    fig = Figure(**PLOT_STYLE['figure'])
+    ax = fig.add_subplot(111)
+    
+    # Configurar estilo
+    ax.set_facecolor(PLOT_STYLE['axes']['facecolor'])
+    ax.grid(True, color=PLOT_STYLE['axes']['grid_color'], linestyle='--', alpha=0.3)
+    
+    for spine in ax.spines.values():
+        spine.set_color(PLOT_STYLE['axes']['spines_color'])
+        spine.set_linewidth(0.5)
+    
+    # *** EXTRAER DATOS ROC ***
+    roc_rgb = resultados_rgb['resultados_roc']
+    roc_pca = resultados_pca['resultados_roc']
+    
+    punto_rgb = resultados_rgb['punto_operacion']
+    punto_pca = resultados_pca['punto_operacion']
+    
+    auc_rgb = resultados_rgb['auc']
+    auc_pca = resultados_pca['auc']
+    
+    # *** GRAFICAR CURVAS ROC ***
+    # Curva RGB
+    ax.plot(roc_rgb['fpr'], roc_rgb['tpr'], 
+            color=COLORS['primary'], linewidth=3, alpha=0.8,
+            label=f'RGB (AUC = {auc_rgb:.3f})')
+    
+    # Curva PCA
+    ax.plot(roc_pca['fpr'], roc_pca['tpr'], 
+            color=COLORS['success'], linewidth=3, alpha=0.8,
+            label=f'PCA (AUC = {auc_pca:.3f})')
+    
+    # *** MARCAR PUNTOS DE OPERACIÓN ***
+    # Punto RGB
+    ax.plot(punto_rgb.fpr, punto_rgb.tpr, 
+            marker='o', markersize=12, color=COLORS['primary'],
+            markerfacecolor='white', markeredgewidth=3, markeredgecolor=COLORS['primary'],
+            label=f'Punto RGB ({criterio.title()})')
+    
+    # Punto PCA  
+    ax.plot(punto_pca.fpr, punto_pca.tpr,
+            marker='s', markersize=12, color=COLORS['success'], 
+            markerfacecolor='white', markeredgewidth=3, markeredgecolor=COLORS['success'],
+            label=f'Punto PCA ({criterio.title()})')
+    
+    # *** LÍNEA DE REFERENCIA ***
+    ax.plot([0, 1], [0, 1], 
+            color=COLORS['secondary'], linestyle='--', linewidth=2, alpha=0.6,
+            label='Clasificador Aleatorio')
+    
+    # *** CONFIGURACIÓN DE EJES ***
+    ax.set_xlim([-0.02, 1.02])
+    ax.set_ylim([-0.02, 1.02])
+    ax.set_xlabel('Tasa de Falsos Positivos (FPR)', **PLOT_STYLE['labels'])
+    ax.set_ylabel('Tasa de Verdaderos Positivos (TPR)', **PLOT_STYLE['labels'])
+    
+    # *** TÍTULO INFORMATIVO ***
+    mejor_metodo = "PCA" if auc_pca > auc_rgb else "RGB"
+    diferencia_auc = abs(auc_pca - auc_rgb)
+    
+    titulo = f"Análisis ROC - Detección de Melanoma\\n"
+    titulo += f"Criterio: {criterio.title()} | Mejor método: {mejor_metodo} (+{diferencia_auc:.3f} AUC)"
+    
+    ax.set_title(titulo, **PLOT_STYLE['title'], pad=20)
+    
+    # *** LEYENDA PERSONALIZADA ***
+    legend = ax.legend(loc='lower right', 
+                      fancybox=True, shadow=True, 
+                      framealpha=0.9, facecolor=COLORS['card_bg'],
+                      edgecolor=COLORS['border'])
+    legend.get_frame().set_facecolor(COLORS['card_bg'])
+    for text in legend.get_texts():
+        text.set_color(COLORS['text'])
+    
+    # *** AGREGAR ANOTACIONES INFORMATIVAS ***
+    # Anotación para punto RGB
+    ax.annotate(f'Sens: {punto_rgb.tpr:.2f}\\nSpec: {punto_rgb.tnr:.2f}',
+                xy=(punto_rgb.fpr, punto_rgb.tpr),
+                xytext=(punto_rgb.fpr + 0.15, punto_rgb.tpr - 0.15),
+                bbox=dict(boxstyle="round,pad=0.3", facecolor=COLORS['primary'], alpha=0.7),
+                fontsize=8, color='white', weight='bold',
+                arrowprops=dict(arrowstyle='->', color=COLORS['primary'], lw=1.5))
+    
+    # Anotación para punto PCA
+    ax.annotate(f'Sens: {punto_pca.tpr:.2f}\\nSpec: {punto_pca.tnr:.2f}',
+                xy=(punto_pca.fpr, punto_pca.tpr),
+                xytext=(punto_pca.fpr + 0.15, punto_pca.tpr + 0.15),
+                bbox=dict(boxstyle="round,pad=0.3", facecolor=COLORS['success'], alpha=0.7),
+                fontsize=8, color='white', weight='bold',
+                arrowprops=dict(arrowstyle='->', color=COLORS['success'], lw=1.5))
+    
+    fig.tight_layout()
+    
+    # *** MOSTRAR EN INTERFAZ ***
+    canvas = FigureCanvasTkAgg(fig, frame_grafico)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+    
+    # *** AGREGAR PANEL DE INFORMACIÓN TEXTUAL ***
+    info_frame = tk.Frame(frame_grafico, bg=COLORS['card_bg'], relief='ridge', bd=1)
+    info_frame.pack(fill=tk.X, padx=5, pady=5)
+    
+    # Título del panel
+    titulo_info = tk.Label(info_frame, 
+                          text="📊 RESUMEN ANÁLISIS ROC",
+                          font=('Segoe UI', 10, 'bold'),
+                          fg=COLORS['primary'],
+                          bg=COLORS['card_bg'])
+    titulo_info.pack(pady=5)
+    
+    # Información comparativa
+    info_text = f"""
+🔴 RGB: AUC = {auc_rgb:.3f} | Sens = {punto_rgb.tpr:.3f} | Spec = {punto_rgb.tnr:.3f} | Youden = {punto_rgb.youden_index:.3f}
+🟢 PCA: AUC = {auc_pca:.3f} | Sens = {punto_pca.tpr:.3f} | Spec = {punto_pca.tnr:.3f} | Youden = {punto_pca.youden_index:.3f}
+
+💡 INTERPRETACIÓN: El método {mejor_metodo} muestra {"mejor" if diferencia_auc > 0.01 else "similar"} capacidad discriminativa
+    """.strip()
+    
+    info_label = tk.Label(info_frame,
+                         text=info_text,
+                         font=('Segoe UI', 9),
+                         fg=COLORS['text'],
+                         bg=COLORS['card_bg'],
+                         justify='left')
+    info_label.pack(padx=10, pady=5)

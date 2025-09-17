@@ -30,6 +30,7 @@ from .base import IClasificador, ClasificadorBase
 from .modelo import ModeloGaussianoMultivariado
 from .umbrales import SelectorUmbral
 from .evaluacion import EvaluadorClasificador
+from ...estadisticas.curvas_roc import CalculadorROC
 
 
 class ClasificadorBayesianoRGB(ClasificadorBase, IClasificador):
@@ -288,6 +289,123 @@ class ClasificadorBayesianoRGB(ClasificadorBase, IClasificador):
         
         print("Comparación completada")
         return resultados
+    
+    def generar_curva_roc(self, datos_test: List[Dict], nombre_clasificador: str = "Clasificador RGB") -> Dict[str, Any]:
+        """
+        *** GENERACIÓN CURVA ROC PARA CLASIFICADOR BAYESIANO ***
+        
+        PROCESO DE ANÁLISIS ROC:
+        1. Extrae todos los píxeles y etiquetas de las imágenes de test
+        2. Calcula log-likelihood ratios para cada píxel
+        3. Genera curva ROC usando sklearn.metrics.roc_curve
+        4. Calcula AUC (Area Under Curve)
+        5. Determina punto de operación según criterio seleccionado
+        
+        INTERPRETACIÓN PÍXEL-A-PÍXEL:
+        Cada píxel es tratado como una muestra independiente para
+        construcción de la curva ROC, permitiendo análisis detallado
+        de capacidad discriminativa del clasificador.
+        
+        MÉTRICAS RETORNADAS:
+        - Curva ROC completa (FPR, TPR, umbrales)
+        - AUC con interpretación clínica
+        - Punto de operación óptimo marcado
+        - Justificación del criterio seleccionado
+        
+        Args:
+            datos_test: Lista de diccionarios con imágenes y máscaras de test
+            nombre_clasificador: Nombre para identificar este clasificador
+            
+        Returns:
+            Diccionario con resultados completos del análisis ROC
+        """
+        self._validar_entrenado()
+        
+        # *** EXTRACCIÓN DE DATOS PARA ROC ***
+        pixeles_scores = []
+        pixeles_etiquetas = []
+        
+        print(f"Procesando {len(datos_test)} imágenes para análisis ROC...")
+        
+        for i, datos in enumerate(datos_test):
+            imagen = datos['imagen']
+            mascara_gt = datos['mascara']
+            
+            # Calcular razones de verosimilitud para toda la imagen
+            razones = self._calcular_razones_verosimilitud(imagen)
+            
+            # Aplanar para análisis píxel-a-píxel
+            razones_flat = razones.flatten()
+            etiquetas_flat = mascara_gt.flatten()
+            
+            pixeles_scores.extend(razones_flat)
+            pixeles_etiquetas.extend(etiquetas_flat)
+            
+            if (i + 1) % 10 == 0:
+                print(f"  Procesadas {i + 1}/{len(datos_test)} imágenes")
+        
+        # Convertir a arrays numpy
+        y_scores = np.array(pixeles_scores)
+        y_true = np.array(pixeles_etiquetas)
+        
+        print(f"Total píxeles analizados: {len(y_scores):,}")
+        print(f"Píxeles lesión: {np.sum(y_true):,} ({np.mean(y_true):.1%})")
+        print(f"Píxeles sanos: {len(y_true) - np.sum(y_true):,} ({1-np.mean(y_true):.1%})")
+        
+        # *** ANÁLISIS ROC CON CALCULADORA ESPECIALIZADA ***
+        calculadora_roc = CalculadorROC()
+        
+        # Calcular curva ROC
+        resultados_roc = calculadora_roc.calcular_roc(y_true, y_scores, nombre_clasificador)
+        
+        # Seleccionar punto de operación según criterio del clasificador
+        criterio_mapeado = self._mapear_criterio_roc()
+        punto_operacion = calculadora_roc.seleccionar_punto_operacion(
+            nombre_clasificador, criterio_mapeado
+        )
+        
+        # *** RESULTADOS INTEGRADOS ***
+        resultados = {
+            'calculadora_roc': calculadora_roc,
+            'resultados_roc': resultados_roc,
+            'punto_operacion': punto_operacion,
+            'criterio_usado': self.criterio_umbral,
+            'umbral_actual': self.umbral,
+            'auc': resultados_roc['auc'],
+            'interpretacion_auc': calculadora_roc._interpretar_auc(resultados_roc['auc']),
+            'justificacion_criterio': punto_operacion.justificacion,
+            'metricas_punto': {
+                'sensibilidad': punto_operacion.tpr,
+                'especificidad': punto_operacion.tnr,
+                'youden_index': punto_operacion.youden_index,
+                'precision': punto_operacion.precision,
+                'f1_score': punto_operacion.f1_score
+            }
+        }
+        
+        print(f"\n*** RESUMEN ANÁLISIS ROC ***")
+        print(f"AUC: {resultados['auc']:.3f} ({resultados['interpretacion_auc']})")
+        print(f"Punto de operación ({criterio_mapeado}):")
+        print(f"  - Sensibilidad: {punto_operacion.tpr:.3f} ({punto_operacion.tpr:.1%})")
+        print(f"  - Especificidad: {punto_operacion.tnr:.3f} ({punto_operacion.tnr:.1%})")
+        print(f"  - Índice Youden: {punto_operacion.youden_index:.3f}")
+        
+        return resultados
+    
+    def _mapear_criterio_roc(self) -> str:
+        """
+        Mapea criterios internos del clasificador a criterios de ROC.
+        
+        Returns:
+            Criterio compatible con CalculadorROC
+        """
+        mapeo = {
+            'youden': 'youden',
+            'equal_error': 'eer',
+            'prior_balanced': 'youden'  # Fallback para compatibilidad
+        }
+        
+        return mapeo.get(self.criterio_umbral, 'youden')
     
     def obtener_parametros(self) -> Dict[str, Any]:
         """

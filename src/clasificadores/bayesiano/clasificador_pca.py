@@ -28,6 +28,7 @@ from typing import Dict, List, Any, Optional
 from ..bayesiano.clasificador import ClasificadorBayesianoRGB
 from ..bayesiano.base import ClasificadorBase, IClasificador
 from ...reduccion_dimensionalidad import PCAAjustado
+from ...estadisticas.curvas_roc import CalculadorROC
 
 
 class ClasificadorBayesianoPCA(ClasificadorBase, IClasificador):
@@ -589,6 +590,159 @@ JUSTIFICACIÓN METODOLÓGICA:
 {"Esto confirma que la reducción dimensional es efectiva" if diff['youden'] > 0 else "La reducción dimensional afecta ligeramente el rendimiento"} 
 y {"justifica" if diff['youden'] > 0 else "requiere evaluar si justifica"} la complejidad adicional del preprocesamiento PCA.
         """.strip()
+    
+    def generar_curva_roc(self, datos_test: List[Dict], nombre_clasificador: str = "Clasificador PCA") -> Dict[str, Any]:
+        """
+        *** GENERACIÓN CURVA ROC PARA CLASIFICADOR PCA ***
+        
+        PROCESO DE ANÁLISIS ROC EN ESPACIO PCA:
+        1. Transforma píxeles RGB de imágenes test al espacio PCA
+        2. Calcula log-likelihood ratios en el espacio reducido
+        3. Genera curva ROC usando sklearn.metrics.roc_curve
+        4. Calcula AUC (Area Under Curve)
+        5. Determina punto de operación según criterio seleccionado
+        
+        DIFERENCIAS CON ROC RGB:
+        - Opera en espacio de dimensionalidad reducida (k componentes)
+        - Preserva información discriminativa más relevante
+        - Potencialmente menos sensible a ruido en dimensiones menores
+        
+        INTERPRETACIÓN MÉDICA PCA:
+        El análisis ROC en espacio PCA evalúa si la reducción dimensional
+        preserva la capacidad discriminativa para detección de melanoma.
+        
+        MÉTRICAS RETORNADAS:
+        - Curva ROC completa (FPR, TPR, umbrales)
+        - AUC con interpretación clínica
+        - Punto de operación óptimo en espacio PCA
+        - Justificación del criterio de reducción dimensional
+        
+        Args:
+            datos_test: Lista de diccionarios con imágenes y máscaras de test
+            nombre_clasificador: Nombre para identificar este clasificador
+            
+        Returns:
+            Diccionario con resultados completos del análisis ROC
+        """
+        self._validar_entrenado()
+        
+        # *** EXTRACCIÓN DE DATOS PARA ROC EN ESPACIO PCA ***
+        pixeles_scores = []
+        pixeles_etiquetas = []
+        
+        print(f"Procesando {len(datos_test)} imágenes para análisis ROC PCA...")
+        
+        for i, datos in enumerate(datos_test):
+            imagen = datos['imagen']
+            mascara_gt = datos['mascara']
+            
+            # *** TRANSFORMACIÓN AL ESPACIO PCA ***
+            # Aplicar la misma pipeline: RGB → reshape → PCA
+            h, w, c = imagen.shape
+            imagen_plana = imagen.reshape(-1, c)
+            
+            # Transformar al espacio PCA
+            imagen_pca = self.pca_ajustado.transformar(imagen_plana)
+            
+            # *** CÁLCULO LOG-LIKELIHOOD RATIOS EN ESPACIO PCA ***
+            # Calcular probabilidades usando distribuciones gaussianas en espacio PCA
+            log_prob_lesion = scipy.stats.multivariate_normal.logpdf(
+                imagen_pca, 
+                mean=self.clasificador_base.mu_lesion, 
+                cov=self.clasificador_base.cov_lesion
+            )
+            
+            log_prob_sana = scipy.stats.multivariate_normal.logpdf(
+                imagen_pca,
+                mean=self.clasificador_base.mu_sana,
+                cov=self.clasificador_base.cov_sana
+            )
+            
+            # Log-likelihood ratio con términos a priori
+            log_ratio = (log_prob_lesion - log_prob_sana + 
+                        np.log(self.clasificador_base.prior_lesion / self.clasificador_base.prior_sana))
+            
+            # Aplanar para análisis píxel-a-píxel
+            razones_flat = log_ratio.flatten()
+            etiquetas_flat = mascara_gt.flatten()
+            
+            pixeles_scores.extend(razones_flat)
+            pixeles_etiquetas.extend(etiquetas_flat)
+            
+            if (i + 1) % 10 == 0:
+                print(f"  Procesadas {i + 1}/{len(datos_test)} imágenes")
+        
+        # Convertir a arrays numpy
+        y_scores = np.array(pixeles_scores)
+        y_true = np.array(pixeles_etiquetas)
+        
+        print(f"Total píxeles analizados: {len(y_scores):,}")
+        print(f"Píxeles lesión: {np.sum(y_true):,} ({np.mean(y_true):.1%})")
+        print(f"Píxeles sanos: {len(y_true) - np.sum(y_true):,} ({1-np.mean(y_true):.1%})")
+        print(f"Dimensionalidad PCA: {self.num_componentes_pca}D (reducida de 3D)")
+        
+        # *** ANÁLISIS ROC CON CALCULADORA ESPECIALIZADA ***
+        calculadora_roc = CalculadorROC()
+        
+        # Calcular curva ROC
+        resultados_roc = calculadora_roc.calcular_roc(y_true, y_scores, nombre_clasificador)
+        
+        # Seleccionar punto de operación según criterio del clasificador
+        criterio_mapeado = self._mapear_criterio_roc()
+        punto_operacion = calculadora_roc.seleccionar_punto_operacion(
+            nombre_clasificador, criterio_mapeado
+        )
+        
+        # *** RESULTADOS INTEGRADOS CON INFORMACIÓN PCA ***
+        resultados = {
+            'calculadora_roc': calculadora_roc,
+            'resultados_roc': resultados_roc,
+            'punto_operacion': punto_operacion,
+            'criterio_usado': self.criterio_umbral,
+            'criterio_pca': self.criterio_pca,
+            'umbral_actual': self.clasificador_base.umbral,
+            'auc': resultados_roc['auc'],
+            'interpretacion_auc': calculadora_roc._interpretar_auc(resultados_roc['auc']),
+            'justificacion_criterio': punto_operacion.justificacion,
+            'informacion_pca': {
+                'num_componentes': self.num_componentes_pca,
+                'varianza_preservada': getattr(self.pca_ajustado.analisis_varianza, 'varianza_total_preservada', 0.0),
+                'reduccion_dimensional': f"{self.num_componentes_pca}D → 3D ({((3-self.num_componentes_pca)/3*100):.1f}% reducción)",
+                'justificacion_pca': self.justificacion_pca
+            },
+            'metricas_punto': {
+                'sensibilidad': punto_operacion.tpr,
+                'especificidad': punto_operacion.tnr,
+                'youden_index': punto_operacion.youden_index,
+                'precision': punto_operacion.precision,
+                'f1_score': punto_operacion.f1_score
+            }
+        }
+        
+        print(f"\n*** RESUMEN ANÁLISIS ROC PCA ***")
+        print(f"AUC: {resultados['auc']:.3f} ({resultados['interpretacion_auc']})")
+        print(f"Dimensionalidad: {self.num_componentes_pca}D (preserva {resultados['informacion_pca']['varianza_preservada']:.1%} varianza)")
+        print(f"Punto de operación ({criterio_mapeado}):")
+        print(f"  - Sensibilidad: {punto_operacion.tpr:.3f} ({punto_operacion.tpr:.1%})")
+        print(f"  - Especificidad: {punto_operacion.tnr:.3f} ({punto_operacion.tnr:.1%})")
+        print(f"  - Índice Youden: {punto_operacion.youden_index:.3f}")
+        
+        return resultados
+    
+    def _mapear_criterio_roc(self) -> str:
+        """
+        Mapea criterios internos del clasificador a criterios de ROC.
+        
+        Returns:
+            Criterio compatible con CalculadorROC
+        """
+        mapeo = {
+            'youden': 'youden',
+            'equal_error': 'eer',
+            'prior_balanced': 'youden'  # Fallback para compatibilidad
+        }
+        
+        return mapeo.get(self.criterio_umbral, 'youden')
     
     def _extraer_pixels_por_clase(self, datos: List[Dict]) -> tuple:
         """

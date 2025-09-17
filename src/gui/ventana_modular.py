@@ -302,6 +302,7 @@ class VentanaPrincipalModular(tk.Tk):
         classifier_actions = [
             ("🤖 Entrenar", self._train_classifier, COLORS['accent']),
             ("📊 Evaluar", self._evaluate_classifier, COLORS['info']),
+            ("📈 Análisis ROC", self._analyze_roc, COLORS['primary']),
             ("⚖️ Comparar Criterios", self._compare_criteria, COLORS['secondary']),
             ("🆚 RGB vs PCA", self._compare_rgb_vs_pca, COLORS['warning']),
             ("🖼️ Clasificar Imagen", self._classify_image, COLORS['success'])
@@ -395,6 +396,10 @@ class VentanaPrincipalModular(tk.Tk):
     def _evaluate_classifier(self):
         """Evalúa el clasificador."""
         self.classifier_controller.evaluate_classifier()
+    
+    def _analyze_roc(self):
+        """Ejecuta análisis ROC completo."""
+        self.classifier_controller.analyze_roc()
     
     def _compare_criteria(self):
         """Compara criterios de umbral."""
