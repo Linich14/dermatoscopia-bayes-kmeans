@@ -1,1 +1,1 @@
-# Paquete principal para clasificadores y utilidades
+# Paquete principal para clasificadores y utilidades de dermatoscopia
