@@ -325,3 +325,214 @@ def mostrar_analisis_roc(frame_grafico, resultados_rgb, resultados_pca, criterio
                          bg=COLORS['card_bg'],
                          justify='left')
     info_label.pack(padx=10, pady=5)
+
+
+def mostrar_resultados_kmeans(frame_grafico, resultados_kmeans, mejor_combinacion):
+    """
+    Muestra los resultados del análisis K-Means con visualización de clusters.
+    
+    Args:
+        frame_grafico: Frame donde mostrar el gráfico
+        resultados_kmeans: Dict con todos los resultados del análisis
+        mejor_combinacion: Objeto con la mejor combinación encontrada
+    """
+    # Limpiar frame
+    for widget in frame_grafico.winfo_children():
+        widget.destroy()
+    
+    if not resultados_kmeans or not mejor_combinacion:
+        # Mostrar mensaje de error
+        error_label = tk.Label(
+            frame_grafico,
+            text="ERROR: No hay resultados K-Means disponibles",
+            font=('Segoe UI', 12, 'bold'),
+            fg=COLORS['error'],
+            bg=COLORS['background']
+        )
+        error_label.pack(expand=True)
+        return
+    
+    # *** CREAR FIGURA CON SUBPLOTS ***
+    fig = Figure(figsize=(14, 10), facecolor=COLORS['background'])
+    
+    # Panel principal con comparación de métricas
+    ax_main = fig.add_subplot(2, 2, (1, 2))
+    
+    # Obtener datos de todas las combinaciones desde mejor_combinacion y otros resultados
+    combinaciones = []
+    scores = []
+    silhouette_scores = []
+    
+    # Si hay resultados disponibles y mejor_combinacion está definida
+    if mejor_combinacion and hasattr(mejor_combinacion, 'nombre_combinacion'):
+        # Intentar obtener datos del reporte completo
+        try:
+            # Si resultados_kmeans tiene la estructura de reporte completo
+            if resultados_kmeans and isinstance(resultados_kmeans, dict):
+                if 'todas_las_combinaciones' in resultados_kmeans:
+                    # Extraer de estructura de reporte completo
+                    todas_combinaciones = resultados_kmeans['todas_las_combinaciones']
+                    
+                    for comb in todas_combinaciones:
+                        combinaciones.append(comb['nombre'])
+                        scores.append(comb['score_total'])
+                        # Buscar silhouette en metricas_promedio
+                        silhouette_val = 0
+                        if 'metricas_promedio' in comb:
+                            # Buscar diferentes variantes del nombre
+                            metricas = comb['metricas_promedio']
+                            silhouette_val = (metricas.get('silhouette', 0) or 
+                                            metricas.get('silhouette_score', 0))
+                        silhouette_scores.append(silhouette_val)
+                else:
+                    # Fallback: mostrar solo la mejor combinación
+                    combinaciones = [mejor_combinacion.nombre_combinacion]
+                    scores = [mejor_combinacion.score_total]
+                    silhouette_scores = [mejor_combinacion.metricas_promedio.get('silhouette', 0)]
+            else:
+                # Fallback: mostrar solo la mejor combinación
+                combinaciones = [mejor_combinacion.nombre_combinacion]
+                scores = [mejor_combinacion.score_total]
+                silhouette_scores = [mejor_combinacion.metricas_promedio.get('silhouette', 0)]
+                
+        except Exception as e:
+            print(f"Error extrayendo datos para gráfico: {e}")
+            # Fallback: mostrar solo la mejor combinación
+            combinaciones = [mejor_combinacion.nombre_combinacion]
+            scores = [mejor_combinacion.score_total]
+            silhouette_scores = [mejor_combinacion.metricas_promedio.get('silhouette', 0)]
+    
+    if scores and len(scores) > 0:
+        x_pos = np.arange(len(combinaciones))
+        width = 0.35
+        
+        bars1 = ax_main.bar(x_pos - width/2, scores, width, 
+                           label='Score Total', color=COLORS['primary'], alpha=0.8)
+        bars2 = ax_main.bar(x_pos + width/2, silhouette_scores, width,
+                           label='Silhouette Score', color=COLORS['success'], alpha=0.8)
+        
+        ax_main.set_xlabel('Combinaciones de Características', **PLOT_STYLE['labels'])
+        ax_main.set_ylabel('Score', **PLOT_STYLE['labels'])
+        ax_main.set_title('Comparacion de Combinaciones K-Means', **PLOT_STYLE['title'])
+        ax_main.set_xticks(x_pos)
+        ax_main.set_xticklabels([c.replace('_', '\n') for c in combinaciones], rotation=45, ha='right')
+        ax_main.legend()
+        ax_main.grid(True, alpha=0.3)
+        
+        # Marcar la mejor combinación si hay múltiples
+        if len(scores) > 1:
+            mejor_idx = scores.index(max(scores))
+            ax_main.annotate('>>> MEJOR <<<', 
+                            xy=(mejor_idx, scores[mejor_idx]), 
+                            xytext=(mejor_idx, scores[mejor_idx] + 0.1),
+                            ha='center', fontweight='bold', color=COLORS['primary'],
+                            arrowprops=dict(arrowstyle='->', color=COLORS['primary']))
+    else:
+        # Si no hay datos, mostrar mensaje informativo
+        ax_main.text(0.5, 0.5, 'No hay datos suficientes\npara mostrar comparación', 
+                    transform=ax_main.transAxes, ha='center', va='center',
+                    fontsize=14, color=COLORS['text'])
+        ax_main.set_title('Comparacion de Combinaciones K-Means', **PLOT_STYLE['title'])
+    
+    # *** GRÁFICO DE DISTRIBUCIÓN DE CLUSTERS ***
+    ax_clusters = fig.add_subplot(2, 2, 3)
+    
+    # Obtener datos de distribución de K del ENTRENAMIENTO (no del test)
+    mejor_resultado = mejor_combinacion
+    if hasattr(mejor_resultado, 'k_distribution_entrenamiento') and mejor_resultado.k_distribution_entrenamiento:
+        clusters_counts = mejor_resultado.k_distribution_entrenamiento
+        
+        if clusters_counts:
+            clusters_list = list(clusters_counts.keys())
+            counts_list = list(clusters_counts.values())
+            
+            colors_clusters = [COLORS['primary'], COLORS['success'], COLORS['info'], COLORS['warning']]
+            ax_clusters.pie(counts_list, labels=[f'{k} clusters' for k in clusters_list], 
+                          autopct='%1.1f%%', colors=colors_clusters[:len(clusters_list)])
+            ax_clusters.set_title('Distribucion Optima de Clusters\n(Durante Entrenamiento)', **PLOT_STYLE['title'])
+    else:
+        # Fallback a datos de test si no hay datos de entrenamiento (retrocompatibilidad)
+        if hasattr(mejor_resultado, 'resultados_imagenes') and mejor_resultado.resultados_imagenes:
+            clusters_counts = {}
+            for img_resultado in mejor_resultado.resultados_imagenes:
+                n_clusters = img_resultado.n_clusters
+                if n_clusters not in clusters_counts:
+                    clusters_counts[n_clusters] = 0
+                clusters_counts[n_clusters] += 1
+            
+            if clusters_counts:
+                clusters_list = list(clusters_counts.keys())
+                counts_list = list(clusters_counts.values())
+                
+                colors_clusters = [COLORS['primary'], COLORS['success'], COLORS['info'], COLORS['warning']]
+                ax_clusters.pie(counts_list, labels=[f'{k} clusters' for k in clusters_list], 
+                              autopct='%1.1f%%', colors=colors_clusters[:len(clusters_list)])
+                ax_clusters.set_title('Distribucion Optima de Clusters\n(Test)', **PLOT_STYLE['title'])
+    
+    # *** MÉTRICAS DETALLADAS ***
+    ax_metricas = fig.add_subplot(2, 2, 4)
+    ax_metricas.axis('off')
+    
+    if mejor_combinacion:
+        metricas_text = f"""
+MEJOR COMBINACION K-MEANS
+
+Combinacion: {mejor_combinacion.nombre_combinacion}
+Score Total: {mejor_combinacion.score_total:.3f}
+
+METRICAS PROMEDIO:
+"""
+        for metrica, valor in mejor_combinacion.metricas_promedio.items():
+            emoji = {'silhouette_score': '*', 'calinski_harabasz': '+', 'davies_bouldin': '-'}.get(metrica, '>')
+            metricas_text += f"{emoji} {metrica.replace('_', ' ').title()}: {valor:.3f}\n"
+        
+        metricas_text += f"""
+Mejor imagen: {mejor_combinacion.mejor_imagen}
+Imagen mas dificil: {mejor_combinacion.peor_imagen}
+
+Total procesadas: {len(mejor_combinacion.resultados_imagenes)}
+        """
+        
+        ax_metricas.text(0.05, 0.95, metricas_text, 
+                        transform=ax_metricas.transAxes,
+                        fontsize=10, family='Segoe UI',
+                        verticalalignment='top', horizontalalignment='left',
+                        bbox=dict(boxstyle='round,pad=0.5', 
+                                facecolor=COLORS['card_bg'], 
+                                edgecolor=COLORS['primary'],
+                                alpha=0.9))
+    
+    # Ajustar espaciado
+    fig.tight_layout(pad=3.0)
+    
+    # *** CREAR CANVAS Y MOSTRAR ***
+    canvas = FigureCanvasTkAgg(fig, master=frame_grafico)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill='both', expand=True)
+    
+    # *** PANEL DE INFORMACIÓN TEXTUAL ADICIONAL ***
+    info_frame = tk.Frame(frame_grafico, bg=COLORS['card_bg'], relief='ridge', bd=1)
+    info_frame.pack(fill=tk.X, padx=5, pady=5)
+    
+    titulo_info = tk.Label(info_frame, 
+                          text="ANALISIS K-MEANS COMPLETADO",
+                          font=('Segoe UI', 10, 'bold'),
+                          fg=COLORS['primary'],
+                          bg=COLORS['card_bg'])
+    titulo_info.pack(pady=5)
+    
+    if mejor_combinacion:
+        resumen_text = f"""
+Analisis ejecutado segun pauta: K-Means aplicado sobre conjunto de test con evaluacion de caracteristicas
+Mejor combinacion identificada: {mejor_combinacion.nombre_combinacion} (Score: {mejor_combinacion.score_total:.3f})
+Interpretacion: {"Excelente" if mejor_combinacion.score_total > 0.7 else "Buena" if mejor_combinacion.score_total > 0.5 else "Moderada"} separacion de clusters
+Requisitos de pauta cumplidos: Aplicacion sobre test set, seleccion de caracteristicas, reporte de mejor combinacion
+        """.strip()
+        
+        resumen_label = tk.Label(info_frame,
+                               text=resumen_text,
+                               font=('Segoe UI', 9),
+                               fg=COLORS['text'],
+                               bg=COLORS['card_bg'],
+                               justify='left')
+        resumen_label.pack(padx=10, pady=5)

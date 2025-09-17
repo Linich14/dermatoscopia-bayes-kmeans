@@ -363,9 +363,167 @@ class StatusIndicator(tk.Label):
             self.configure(text=message, fg=COLORS['text'])
 
 
+class ProgressBar(tk.Frame):
+    """
+    Barra de progreso personalizada.
+    
+    Proporciona una barra de progreso visual para mostrar el avance
+    de operaciones largas.
+    """
+    
+    def __init__(self, parent, **kwargs):
+        """
+        Inicializa la barra de progreso.
+        
+        Args:
+            parent (tk.Widget): Widget padre
+            **kwargs: Argumentos adicionales
+        """
+        super().__init__(parent, **kwargs)
+        
+        # Label para mostrar texto de progreso
+        self.label = tk.Label(self, text="", bg=self.cget('bg'), fg=COLORS['text'])
+        self.label.pack(pady=(0, 5))
+        
+        # Barra de progreso
+        try:
+            from tkinter import ttk
+            self.progressbar = ttk.Progressbar(
+                self, mode='determinate', length=300
+            )
+        except ImportError:
+            # Fallback simple si ttk no está disponible
+            self.progressbar = tk.Frame(self, height=20, bg=COLORS['border'])
+        
+        self.progressbar.pack(fill='x', padx=5, pady=2)
+        
+        self.current_value = 0
+        self.maximum_value = 100
+    
+    def set_progress(self, value, text=""):
+        """
+        Actualiza el progreso.
+        
+        Args:
+            value (int): Valor de progreso (0-100)
+            text (str): Texto a mostrar
+        """
+        self.current_value = min(max(value, 0), 100)
+        
+        if hasattr(self.progressbar, 'configure'):
+            self.progressbar['value'] = self.current_value
+        
+        if text:
+            self.label.configure(text=text)
+
+
+class MetricsDisplay(tk.Frame):
+    """
+    Componente para mostrar métricas de clasificación.
+    
+    Proporciona una interfaz organizada para mostrar resultados
+    de evaluación de modelos.
+    """
+    
+    def __init__(self, parent, **kwargs):
+        """
+        Inicializa el display de métricas.
+        
+        Args:
+            parent (tk.Widget): Widget padre
+            **kwargs: Argumentos adicionales
+        """
+        super().__init__(parent, **kwargs)
+        
+        # Área de texto para mostrar métricas
+        self.text_area = tk.Text(
+            self, 
+            height=10, 
+            width=50,
+            bg=COLORS['input_bg'],
+            fg=COLORS['text'],
+            font=('Consolas', 9)
+        )
+        self.text_area.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        # Scrollbar
+        scrollbar = tk.Scrollbar(self, command=self.text_area.yview)
+        self.text_area.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side='right', fill='y')
+    
+    def show_metrics(self, metrics_dict):
+        """
+        Muestra las métricas en el display.
+        
+        Args:
+            metrics_dict (dict): Diccionario con métricas a mostrar
+        """
+        self.text_area.delete(1.0, tk.END)
+        
+        for key, value in metrics_dict.items():
+            if isinstance(value, float):
+                self.text_area.insert(tk.END, f"{key}: {value:.4f}\n")
+            else:
+                self.text_area.insert(tk.END, f"{key}: {value}\n")
+
+
+class InfoPanel(tk.Frame):
+    """
+    Panel informativo para mostrar información contextual.
+    
+    Proporciona un área para mostrar información, ayuda o
+    instrucciones al usuario.
+    """
+    
+    def __init__(self, parent, **kwargs):
+        """
+        Inicializa el panel de información.
+        
+        Args:
+            parent (tk.Widget): Widget padre
+            **kwargs: Argumentos adicionales
+        """
+        super().__init__(parent, **kwargs)
+        
+        # Label para el título
+        self.title_label = tk.Label(
+            self,
+            text="",
+            font=('Arial', 10, 'bold'),
+            bg=self.cget('bg'),
+            fg=COLORS['primary']
+        )
+        self.title_label.pack(anchor='w', padx=5, pady=(5, 0))
+        
+        # Área de texto para contenido
+        self.content_label = tk.Label(
+            self,
+            text="",
+            wraplength=300,
+            justify='left',
+            bg=self.cget('bg'),
+            fg=COLORS['text']
+        )
+        self.content_label.pack(anchor='w', padx=5, pady=5)
+    
+    def set_info(self, title, content):
+        """
+        Establece la información a mostrar.
+        
+        Args:
+            title (str): Título del panel
+            content (str): Contenido a mostrar
+        """
+        self.title_label.configure(text=title)
+        self.content_label.configure(text=content)
+
+
 __all__ = [
     'RoundedContainer',
     'RoundedButton', 
     'ScrollableFrame',
-    'StatusIndicator'
+    'StatusIndicator',
+    'ProgressBar',
+    'MetricsDisplay',
+    'InfoPanel'
 ]

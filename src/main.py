@@ -38,7 +38,7 @@ def main():
 	stats = estadisticas_rgb(train)
 	
 	print(f"🚀 Iniciando interfaz gráfica {ventana_tipo}...")
-	ventana = ventana_clase(stats)
+	ventana = ventana_clase(stats, train, val, test)
 	ventana.mainloop()
 
 if __name__ == "__main__":

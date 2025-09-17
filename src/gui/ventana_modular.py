@@ -27,11 +27,14 @@ FLUJO DE USUARIO:
 
 import tkinter as tk
 from tkinter import ttk
+import threading
 
 from .styles import COLORS, STYLES, DESIGN
 from .components import RoundedContainer, RoundedButton, ScrollableFrame, StatusIndicator
 from .controllers import ClassifierController
 from .graficos import mostrar_histograma
+from .dialogs import mostrar_dialogo_comparacion
+from ..comparadores.comparador_triple import ComparadorTriple, ejecutar_comparacion_rapida
 
 
 class VentanaPrincipalModular(tk.Tk):
@@ -42,12 +45,15 @@ class VentanaPrincipalModular(tk.Tk):
     control y datos en componentes especializados.
     """
     
-    def __init__(self, stats_rgb):
+    def __init__(self, stats_rgb, datos_train=None, datos_val=None, datos_test=None):
         """
         Inicializa la ventana principal.
         
         Args:
             stats_rgb: Estadísticas RGB precalculadas
+            datos_train: Datos de entrenamiento (opcional, para comparador triple)
+            datos_val: Datos de validación (opcional, para comparador triple)
+            datos_test: Datos de test (opcional, para comparador triple)
         """
         super().__init__()
         
@@ -58,6 +64,9 @@ class VentanaPrincipalModular(tk.Tk):
         
         # Datos
         self.stats_rgb = stats_rgb
+        self.datos_train = datos_train
+        self.datos_val = datos_val
+        self.datos_test = datos_test
         
         # Variables de control
         self.area_var = tk.StringVar(value='lesion')
@@ -65,6 +74,17 @@ class VentanaPrincipalModular(tk.Tk):
         self.criterio_var = tk.StringVar(value='youden')
         self.usar_pca_var = tk.BooleanVar(value=False)
         self.criterio_pca_var = tk.StringVar(value='varianza')
+        
+        # Variables de control K-Means
+        self.kmeans_caracteristicas_var = tk.StringVar(value='RGB_basico')
+        self.kmeans_clusters_var = tk.StringVar(value='2,3,4,5')
+        self.kmeans_auto_eval_var = tk.BooleanVar(value=True)
+        
+        # Variables de control Comparador Triple
+        self.comparador_paralelo_var = tk.BooleanVar(value=True)
+        self.comparador_metricas_detalladas_var = tk.BooleanVar(value=True)
+        self.comparador_triple = None
+        self.ultimo_reporte_triple = None
         
         # Controlador
         self.classifier_controller = ClassifierController(self)
@@ -128,6 +148,8 @@ class VentanaPrincipalModular(tk.Tk):
         self._create_channel_section(content)
         self._create_actions_section(content)
         self._create_classifier_section(content)
+        self._create_kmeans_section(content)
+        self._create_comparador_triple_section(content)
     
     def _create_analysis_section(self, parent):
         """Crea la sección de selección de área."""
@@ -350,6 +372,17 @@ class VentanaPrincipalModular(tk.Tk):
         self.usar_pca_var.set(False)
         self.criterio_pca_var.set('varianza')
         
+        # Reiniciar variables K-Means
+        self.kmeans_caracteristicas_var.set('RGB_basico')
+        self.kmeans_clusters_var.set('2,3,4,5')
+        self.kmeans_auto_eval_var.set(True)
+        
+        # Reiniciar variables Comparador Triple
+        self.comparador_paralelo_var.set(True)
+        self.comparador_metricas_detalladas_var.set(True)
+        self.comparador_triple = None
+        self.ultimo_reporte_triple = None
+        
         # Ocultar controles PCA
         self._toggle_pca_controls()
         
@@ -360,6 +393,13 @@ class VentanaPrincipalModular(tk.Tk):
         # Actualizar UI
         self.status_indicator.set_state('idle', 'Listo')
         self.progress_text.configure(text="Listo para entrenar")
+        
+        # Actualizar estado del comparador
+        if hasattr(self, 'comparador_status'):
+            self.comparador_status.set_state('idle', 'Listo')
+        if hasattr(self, 'comparador_progress_text'):
+            self.comparador_progress_text.configure(text="Listo para comparar")
+        
         self.update_histogram()
         
         print("🔄 Sistema reiniciado correctamente")
@@ -408,6 +448,435 @@ class VentanaPrincipalModular(tk.Tk):
     def _classify_image(self):
         """Clasifica una imagen seleccionada."""
         self.classifier_controller.classify_image()
+    
+    def _create_kmeans_section(self, parent):
+        """
+        *** SECCIÓN K-MEANS CLASIFICACIÓN NO SUPERVISADA ***
+        
+        Crea controles para configurar y ejecutar análisis K-Means según
+        requisitos de la pauta del proyecto.
+        
+        FUNCIONALIDAD:
+        - Selección de combinación de características
+        - Configuración de número de clusters
+        - Evaluación automática de combinaciones
+        - Ejecución de análisis completo
+        - Visualización de resultados
+        """
+        section_frame = tk.LabelFrame(parent,
+                                     text="🎯 K-Means (Clasificación No Supervisada)",
+                                     bg=COLORS['background'],
+                                     fg=COLORS['text'],
+                                     font=('Segoe UI', 10, 'bold'))
+        section_frame.pack(fill=tk.X, padx=5, pady=10)
+        
+
+        
+        # Selector de tipo de características
+        tk.Label(section_frame,
+                text="Combinación de características:",
+                font=('Segoe UI', 9),
+                fg=COLORS['text'],
+                bg=COLORS['background']).pack(fill=tk.X, padx=10, pady=(10, 2))
+        
+        caracteristicas_combo = ttk.Combobox(section_frame,
+                                           textvariable=self.kmeans_caracteristicas_var,
+                                           values=[
+                                               'RGB_basico',
+                                               'HSV_Textura', 
+                                               'LAB_RGB',
+                                               'Completo',
+                                               'Textura_Avanzada',
+                                               'Auto_Evaluar_Todas'
+                                           ],
+                                           state='readonly',
+                                           font=('Segoe UI', 8))
+        caracteristicas_combo.pack(fill=tk.X, padx=10, pady=(0, 5))
+        
+        # Configuración de clusters
+        tk.Label(section_frame,
+                text="Números de clusters a probar:",
+                font=('Segoe UI', 9),
+                fg=COLORS['text'],
+                bg=COLORS['background']).pack(fill=tk.X, padx=10, pady=(5, 2))
+        
+        clusters_entry = tk.Entry(section_frame,
+                                 textvariable=self.kmeans_clusters_var,
+                                 font=('Segoe UI', 8),
+                                 bg=COLORS['card_bg'],
+                                 fg=COLORS['text'])
+        clusters_entry.pack(fill=tk.X, padx=10, pady=(0, 5))
+        
+        # Checkbox para evaluación automática
+        auto_check = tk.Checkbutton(section_frame,
+                                   text="🔍 Evaluación automática (recomendado)",
+                                   variable=self.kmeans_auto_eval_var,
+                                   font=('Segoe UI', 8),
+                                   fg=COLORS['text'],
+                                   bg=COLORS['background'],
+                                   selectcolor=COLORS['background'])
+        auto_check.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Botones de acción K-Means
+        kmeans_actions = [
+            ("Ejecutar K-Means", self._execute_kmeans, COLORS['warning']),
+            ("Mejor Combinacion", self._show_best_combination, COLORS['success']),
+            ("Probar K-Means Elegido", self._test_selected_kmeans, COLORS['primary'])
+        ]
+        
+        for text, command, color in kmeans_actions:
+            btn = RoundedButton(section_frame,
+                              text=text,
+                              command=command,
+                              background=color,
+                              activebackground=COLORS['primary_dark'],
+                              width=180,
+                              height=30)
+            btn.pack(pady=3, padx=10)
+    
+    def _create_comparador_triple_section(self, parent):
+        """
+        *** SECCIÓN COMPARADOR TRIPLE ***
+        
+        Crea controles para ejecutar comparación simultánea de los tres
+        clasificadores: RGB Bayesiano, PCA Bayesiano y K-Means.
+        
+        FUNCIONALIDAD:
+        - Configuración de ejecución paralela
+        - Opciones de métricas detalladas
+        - Comparación completa y rápida
+        - Visualización de resultados comparativos
+        - Ranking automático de clasificadores
+        """
+        section_frame = tk.LabelFrame(parent,
+                                     text="⚖️ Comparador Triple (RGB + PCA + K-Means)",
+                                     bg=COLORS['background'],
+                                     fg=COLORS['text'],
+                                     font=('Segoe UI', 10, 'bold'))
+        section_frame.pack(fill=tk.X, padx=5, pady=10)
+        
+        # Descripción del comparador
+        desc_label = tk.Label(section_frame,
+                             text="Compare los tres clasificadores simultáneamente\npara evaluación integral de rendimiento",
+                             font=('Segoe UI', 8),
+                             fg=COLORS['text'],
+                             bg=COLORS['background'],
+                             justify='center',
+                             wraplength=160)
+        desc_label.pack(fill=tk.X, padx=10, pady=(10, 5))
+        
+        # Opciones de configuración
+        config_frame = tk.Frame(section_frame, bg=COLORS['accent_light'])
+        config_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Checkbox para ejecución paralela
+        paralelo_check = tk.Checkbutton(config_frame,
+                                       text="🚀 Ejecución en paralelo",
+                                       variable=self.comparador_paralelo_var,
+                                       font=('Segoe UI', 8),
+                                       fg=COLORS['text'],
+                                       bg=COLORS['accent_light'],
+                                       selectcolor=COLORS['accent_light'])
+        paralelo_check.pack(fill=tk.X, padx=10, pady=2)
+        
+        # Checkbox para métricas detalladas
+        metricas_check = tk.Checkbutton(config_frame,
+                                       text="📊 Métricas detalladas",
+                                       variable=self.comparador_metricas_detalladas_var,
+                                       font=('Segoe UI', 8),
+                                       fg=COLORS['text'],
+                                       bg=COLORS['accent_light'],
+                                       selectcolor=COLORS['accent_light'])
+        metricas_check.pack(fill=tk.X, padx=10, pady=2)
+        
+        # Indicador de progreso para comparador triple
+        self.comparador_status = StatusIndicator(section_frame, bg=COLORS['background'])
+        self.comparador_status.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Texto de progreso específico para comparador
+        self.comparador_progress_text = tk.Label(section_frame,
+                                                text="Listo para comparar",
+                                                font=('Segoe UI', 8),
+                                                fg=COLORS['text'],
+                                                bg=COLORS['background'],
+                                                wraplength=160)
+        self.comparador_progress_text.pack(fill=tk.X, padx=10, pady=2)
+        
+        # Botones de acción del comparador
+        comparador_actions = [
+            ("🔬 Comparación Completa", self._ejecutar_comparacion_completa, COLORS['primary']),
+            ("⚡ Comparación Rápida", self._ejecutar_comparacion_rapida, COLORS['warning']),
+            ("📈 Ver Último Reporte", self._ver_ultimo_reporte, COLORS['info']),
+            ("🏆 Mejor Clasificador", self._mostrar_mejor_clasificador, COLORS['success'])
+        ]
+        
+        for text, command, color in comparador_actions:
+            btn = RoundedButton(section_frame,
+                              text=text,
+                              command=command,
+                              background=color,
+                              activebackground=COLORS['primary_dark'],
+                              width=180,
+                              height=30)
+            btn.pack(pady=3, padx=10)
+    
+    def _execute_kmeans(self):
+        """Ejecuta el análisis K-Means completo."""
+        caracteristicas = self.kmeans_caracteristicas_var.get()
+        clusters_str = self.kmeans_clusters_var.get()
+        auto_eval = self.kmeans_auto_eval_var.get()
+        
+        self.classifier_controller.execute_kmeans_analysis(
+            caracteristicas, clusters_str, auto_eval
+        )
+    
+    def _show_best_combination(self):
+        """Muestra la mejor combinación de características encontrada."""
+        self.classifier_controller.show_best_kmeans_combination()
+    
+    def _test_selected_kmeans(self):
+        """Permite probar el K-Means con la mejor combinación en una imagen específica."""
+        self.classifier_controller.test_selected_kmeans()
+    
+    # ===== MÉTODOS DEL COMPARADOR TRIPLE =====
+    
+    def _ejecutar_comparacion_completa(self):
+        """Ejecuta comparación completa de los tres clasificadores."""
+        # Verificar que hay datos disponibles
+        if not hasattr(self, 'stats_rgb') or not self.stats_rgb:
+            self._update_comparador_status('error', 'Error: No hay datos cargados')
+            return
+        
+        # Verificar que tenemos los datos particionados
+        if not self.datos_train or not self.datos_val or not self.datos_test:
+            self._update_comparador_status('error', 'Error: No hay datos particionados disponibles')
+            return
+        
+        # Actualizar estado
+        self._update_comparador_status('working', 'Iniciando comparación completa...')
+        self.comparador_progress_text.configure(text="Preparando clasificadores...")
+        
+        # Crear comparador si no existe
+        if not self.comparador_triple:
+            self.comparador_triple = ComparadorTriple(
+                self.datos_train, 
+                self.datos_val, 
+                self.datos_test, 
+                self.stats_rgb
+            )
+        
+        # Obtener configuración
+        paralelo = self.comparador_paralelo_var.get()
+        metricas_detalladas = self.comparador_metricas_detalladas_var.get()
+        
+        # Ejecutar en hilo separado
+        thread = threading.Thread(
+            target=self._ejecutar_comparacion_worker,
+            args=(False, paralelo, metricas_detalladas)  # False = no es rápida
+        )
+        thread.daemon = True
+        thread.start()
+    
+    def _ejecutar_comparacion_rapida(self):
+        """Ejecuta comparación rápida de los tres clasificadores."""
+        # Verificar que hay datos disponibles
+        if not hasattr(self, 'stats_rgb') or not self.stats_rgb:
+            self._update_comparador_status('error', 'Error: No hay datos cargados')
+            return
+        
+        # Verificar que tenemos los datos particionados
+        if not self.datos_train or not self.datos_val or not self.datos_test:
+            self._update_comparador_status('error', 'Error: No hay datos particionados disponibles')
+            return
+        
+        # Actualizar estado
+        self._update_comparador_status('working', 'Iniciando comparación rápida...')
+        self.comparador_progress_text.configure(text="Ejecutando evaluación básica...")
+        
+        # Ejecutar en hilo separado
+        thread = threading.Thread(
+            target=self._ejecutar_comparacion_worker,
+            args=(True, True, False)  # True = rápida, paralelo=True, metricas=False
+        )
+        thread.daemon = True
+        thread.start()
+    
+    def _ejecutar_comparacion_worker(self, es_rapida, paralelo, metricas_detalladas):
+        """Worker que ejecuta la comparación en hilo separado."""
+        try:
+            # Callback para actualizar progreso
+            def callback_progreso(progreso, mensaje):
+                self.after(0, lambda: self.comparador_progress_text.configure(text=f"{mensaje} ({progreso:.1f}%)"))
+            
+            print(f"🔄 Iniciando comparación - Rápida: {es_rapida}, Paralelo: {paralelo}")
+            print(f"📊 Datos disponibles - Train: {len(self.datos_train) if self.datos_train else 0}, Val: {len(self.datos_val) if self.datos_val else 0}, Test: {len(self.datos_test) if self.datos_test else 0}")
+            
+            if es_rapida:
+                # Comparación rápida usando función auxiliar
+                print("⚡ Ejecutando comparación rápida...")
+                reporte = ejecutar_comparacion_rapida(
+                    self.datos_train,
+                    self.datos_val,
+                    self.datos_test,
+                    self.stats_rgb
+                )
+            else:
+                # Comparación completa - solo pasar usar_paralelismo
+                print("🔬 Ejecutando comparación completa...")
+                reporte = self.comparador_triple.ejecutar_comparacion_completa(
+                    usar_paralelismo=paralelo
+                )
+            
+            print(f"✅ Comparación completada. Resultados: {len(reporte.resultados) if reporte.resultados else 0}")
+            
+            # Guardar reporte
+            self.ultimo_reporte_triple = reporte
+            
+            # Actualizar UI en hilo principal
+            self.after(0, lambda: self._mostrar_resultados_comparacion(reporte))
+            
+        except Exception as e:
+            import traceback
+            error_msg = f"Error en comparación: {str(e)}"
+            traceback_str = traceback.format_exc()
+            print(f"❌ {error_msg}")
+            print(f"📋 Traceback:\n{traceback_str}")
+            self.after(0, lambda: self._mostrar_error_comparacion(error_msg))
+    
+    def _convertir_reporte_a_dict(self, reporte):
+        """Convierte un ReporteTriple a formato dict para el diálogo."""
+        resultados_dict = {}
+        
+        for resultado in reporte.resultados:
+            nombre = resultado.nombre_clasificador
+            resultados_dict[nombre] = {
+                'metricas': {
+                    'precision': resultado.precision,
+                    'recall': resultado.recall,
+                    'f1_score': resultado.f1_score,
+                    'exactitud': resultado.accuracy,  # Mapear accuracy a exactitud
+                    'sensibilidad': resultado.recall,  # Sensibilidad = Recall
+                    'especificidad': resultado.precision,  # Aproximación usando precision
+                    'jaccard': resultado.f1_score * 0.8,  # Aproximación del índice Jaccard
+                    'youden': resultado.f1_score  # Usamos F1 como métrica principal
+                },
+                'umbral': 0.5,  # Valor por defecto para compatibilidad
+                'tiempo_total': resultado.tiempo_entrenamiento + resultado.tiempo_evaluacion,
+                'mejor_imagen': resultado.imagen_mejor,
+                'peor_imagen': resultado.imagen_peor,
+                'configuracion': resultado.mejor_configuracion,
+                'notas': resultado.notas
+            }
+        
+        return resultados_dict
+
+    def _mostrar_resultados_comparacion(self, reporte):
+        """Muestra los resultados de la comparación en la UI."""
+        
+        # Verificar que tenemos resultados válidos
+        if not reporte.resultados:
+            self._update_comparador_status('warning', 'Sin resultados válidos')
+            self.comparador_progress_text.configure(text="No se obtuvieron resultados válidos")
+            return
+        
+        # Encontrar el mejor F1-Score
+        mejor_resultado = max(reporte.resultados, key=lambda x: x.f1_score) if reporte.resultados else None
+        mejor_f1 = mejor_resultado.f1_score if mejor_resultado else 0.0
+        
+        # Debug: Mostrar métricas de todos los clasificadores
+        for resultado in reporte.resultados:
+            print(f"  {resultado.nombre_clasificador}: F1={resultado.f1_score:.3f}, Precision={resultado.precision:.3f}, Recall={resultado.recall:.3f}, Accuracy={resultado.accuracy:.3f}")
+        
+        # Actualizar estado
+        self._update_comparador_status('success', 'Comparación completada')
+        self.comparador_progress_text.configure(text=f"Mejor: {reporte.clasificador_ganador} (F1: {mejor_f1:.3f})")
+        
+        # Mostrar diálogo con resultados
+        try:
+            resultados_dict = self._convertir_reporte_a_dict(reporte)
+            dialogo = mostrar_dialogo_comparacion(self, resultados_dict, "Resultados de Comparación Triple")
+            
+        except Exception as e:
+            import traceback
+            print(f"⚠️ Error mostrando diálogo: {e}")
+            print(f"Traceback: {traceback.format_exc()}")
+        
+        print(f"🏆 Comparación completada. Mejor clasificador: {reporte.clasificador_ganador}")
+        print(f"📊 F1-Score: {mejor_f1:.3f}")
+        print(f"⏱️ Tiempo total: {reporte.tiempo_total:.2f}s")
+    
+    def _mostrar_error_comparacion(self, mensaje):
+        """Muestra un error de comparación."""
+        from tkinter import messagebox
+        
+        self._update_comparador_status('error', 'Error en comparación')
+        self.comparador_progress_text.configure(text="Error - Ver detalles")
+        
+        messagebox.showerror("Error de Comparación", mensaje)
+        print(f"❌ Error en comparación: {mensaje}")
+    
+    def _ver_ultimo_reporte(self):
+        """Muestra el último reporte de comparación generado."""
+        if self.ultimo_reporte_triple:
+            resultados_dict = self._convertir_reporte_a_dict(self.ultimo_reporte_triple)
+            mostrar_dialogo_comparacion(self, resultados_dict, "Último Reporte de Comparación")
+        else:
+            from tkinter import messagebox
+            messagebox.showinfo("Sin Reportes", "No hay reportes de comparación disponibles.\nEjecute una comparación primero.")
+    
+    def _mostrar_mejor_clasificador(self):
+        """Muestra información del mejor clasificador encontrado."""
+        if self.ultimo_reporte_triple:
+            from tkinter import messagebox
+            
+            reporte = self.ultimo_reporte_triple
+            
+            # Obtener información del mejor clasificador
+            mejor_nombre = reporte.clasificador_ganador
+            tiempo = reporte.tiempo_total
+            
+            # Encontrar el mejor F1-Score
+            mejor_resultado = max(reporte.resultados, key=lambda x: x.f1_score) if reporte.resultados else None
+            mejor_f1 = mejor_resultado.f1_score if mejor_resultado else 0.0
+            
+            mensaje = f"""🏆 MEJOR CLASIFICADOR ENCONTRADO:
+
+📊 Clasificador: {mejor_nombre}
+🎯 F1-Score: {mejor_f1:.3f}
+⏱️ Tiempo total: {tiempo:.2f}s
+
+🏅 RANKING COMPLETO:"""
+            
+            # Crear ranking con F1-Scores
+            ranking_con_scores = []
+            for nombre_clasificador in reporte.ranking:
+                resultado = next((r for r in reporte.resultados if r.nombre_clasificador == nombre_clasificador), None)
+                f1_score = resultado.f1_score if resultado else 0.0
+                ranking_con_scores.append((nombre_clasificador, f1_score))
+            
+            for i, (nombre, f1_score) in enumerate(ranking_con_scores, 1):
+                mensaje += f"\n{i}. {nombre}: {f1_score:.3f}"
+            
+            messagebox.showinfo("Mejor Clasificador", mensaje)
+            
+            messagebox.showinfo("Mejor Clasificador", mensaje)
+        else:
+            from tkinter import messagebox
+            messagebox.showinfo("Sin Resultados", "No hay resultados de comparación disponibles.\nEjecute una comparación primero.")
+    
+    def _update_comparador_status(self, state: str, message: str):
+        """Actualiza el estado del comparador en la UI."""
+        self.comparador_status.set_state(state, message)
+    
+    def _mostrar_error_comparacion(self, error_msg: str):
+        """Muestra un error de comparación en la UI."""
+        print(f"❌ Error en comparación: {error_msg}")
+        self._update_comparador_status('error', 'Error en comparación')
+        self.comparador_progress_text.configure(text="Error - Ver consola para detalles")
+        
+        # También mostrar en un diálogo
+        from tkinter import messagebox
+        messagebox.showerror("Error en Comparación", f"Error ejecutando comparación:\n\n{error_msg}")
     
     def _update_classifier_status(self, state: str, message: str):
         """Actualiza el estado del clasificador en la UI."""

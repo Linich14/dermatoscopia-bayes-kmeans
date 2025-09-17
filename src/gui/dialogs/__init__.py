@@ -249,16 +249,18 @@ class ComparisonDialog(tk.Toplevel):
     con ranking automático y recomendaciones.
     """
     
-    def __init__(self, parent, resultados: Dict[str, Dict[str, Any]]):
+    def __init__(self, parent, resultados: Dict[str, Dict[str, Any]], titulo: str = "Comparación"):
         """
         Inicializa el diálogo de comparación.
         
         Args:
             parent: Ventana padre
             resultados: Diccionario con resultados para cada criterio
+            titulo: Título del diálogo
         """
         super().__init__(parent)
-        self.title("Comparación de Criterios de Umbral")
+        
+        self.title(titulo)
         self.geometry(f"{DESIGN['dialog_width']}x{DESIGN['dialog_height']}")
         self.configure(bg=COLORS['background'])
         self.minsize(650, 500)
@@ -270,6 +272,13 @@ class ComparisonDialog(tk.Toplevel):
         # Centrar en la ventana padre
         self.transient(parent)
         self.grab_set()
+        
+        # ASEGURAR QUE EL DIÁLOGO SEA VISIBLE
+        self.deiconify()      # Asegurar que no está minimizado
+        self.lift()           # Traer al frente
+        self.focus_force()    # Forzar el foco
+        self.attributes('-topmost', True)  # Temporalmente encima de todo
+        self.after(100, lambda: self.attributes('-topmost', False))  # Quitar después de 100ms
     
     def _create_widgets(self):
         """Crea los widgets del diálogo."""
@@ -740,4 +749,68 @@ Considerar otros criterios PCA o ajustar parámetros.
                  pady=5).pack()
 
 
-__all__ = ['EvaluationDialog', 'ComparisonDialog', 'RGBvsPCADialog']
+# Funciones de conveniencia para crear diálogos
+
+def mostrar_dialogo_metricas(parent, metricas: Dict[str, Any], modelo_info: Dict[str, Any] = None):
+    """
+    Función de conveniencia para mostrar diálogo de métricas.
+    
+    Args:
+        parent: Ventana padre
+        metricas: Diccionario con métricas de evaluación
+        modelo_info: Información adicional del modelo (opcional)
+    
+    Returns:
+        EvaluationDialog: El diálogo creado
+    """
+    return EvaluationDialog(parent, metricas, modelo_info)
+
+
+def mostrar_dialogo_comparacion(parent, resultados_comparacion: Dict[str, Any], titulo: str = "Comparación"):
+    """
+    Función de conveniencia para mostrar diálogo de comparación.
+    
+    Args:
+        parent: Ventana padre
+        resultados_comparacion: Resultados de la comparación
+        titulo: Título del diálogo
+    
+    Returns:
+        ComparisonDialog: El diálogo creado
+    """
+    return ComparisonDialog(parent, resultados_comparacion, titulo)
+
+
+def mostrar_dialogo_progreso(parent, titulo: str = "Procesando..."):
+    """
+    Función de conveniencia para mostrar diálogo de progreso.
+    
+    Args:
+        parent: Ventana padre
+        titulo: Título del diálogo
+    
+    Returns:
+        RGBvsPCADialog: El diálogo creado (reutilizado para progreso)
+    """
+    return RGBvsPCADialog(parent, {}, titulo)
+
+
+# Aliases para compatibilidad
+DialogoBase = EvaluationDialog
+DialogoMetricas = EvaluationDialog
+DialogoComparacion = ComparisonDialog
+DialogoProgreso = RGBvsPCADialog
+
+
+__all__ = [
+    'EvaluationDialog', 
+    'ComparisonDialog', 
+    'RGBvsPCADialog',
+    'DialogoBase',
+    'DialogoMetricas', 
+    'DialogoComparacion', 
+    'DialogoProgreso',
+    'mostrar_dialogo_metricas',
+    'mostrar_dialogo_comparacion',
+    'mostrar_dialogo_progreso'
+]

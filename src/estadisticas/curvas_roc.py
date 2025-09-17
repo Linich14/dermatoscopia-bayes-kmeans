@@ -34,7 +34,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, auc
 from typing import Dict, List, Tuple, Optional, Any
-import seaborn as sns
+try:
+    import seaborn as sns
+except ImportError:
+    sns = None
 from dataclasses import dataclass
 
 

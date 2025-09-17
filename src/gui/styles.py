@@ -359,3 +359,12 @@ PLOT_STYLE = {
         'fontsize': 10
     }
 }
+
+# Fuentes del sistema
+FONTS = {
+    'default': ('Segoe UI', 9),
+    'heading': ('Segoe UI', 12, 'bold'),
+    'button': ('Segoe UI', 9),
+    'small': ('Segoe UI', 8),
+    'monospace': ('Consolas', 9)
+}

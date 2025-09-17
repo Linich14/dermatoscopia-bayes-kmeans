@@ -1,6 +1,32 @@
-numpy
-opencv-python
-scikit-learn
-matplotlib
-scipy
-Pillow
+# Dependencias principales para análisis de imágenes dermatoscópicas
+# Clasificadores Bayesianos + K-means
+
+# Computación científica y arrays
+numpy>=2.1.0
+scipy>=1.15.0
+
+# Procesamiento de imágenes
+opencv-python>=4.12.0
+Pillow>=11.0.0
+scikit-image>=0.25.2
+
+# Machine Learning
+scikit-learn>=1.7.0
+
+# Visualización y gráficos
+matplotlib>=3.9.0
+
+# Dependencias adicionales para scikit-image
+imageio>=2.37.0
+networkx>=3.4.0
+tifffile>=2025.5.0
+lazy-loader>=0.4
+
+# Utilidades adicionales
+joblib>=1.5.0
+
+# GUI (tkinter incluido en Python estándar)
+# No requiere instalación adicional
+
+# Nota: Versiones verificadas en entorno de desarrollo
+# Fecha de actualización: 2025-09-17
