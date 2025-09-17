@@ -34,9 +34,25 @@ Desarrollar una herramienta que ayude a diferenciar entre regiones de lesión y 
 - `requirements.txt` Dependencias
 
 
-## Autores
-- [Jorge Soto](https://github.com/Linich14)
-- [Daniel Peña](https://github.com/DPBascur)
+
+## 👥 Autores
+
+<div align="center">
+   <table>
+      <tr>
+         <td align="center">
+            <img src="images/autores/linich.jpg" width="150" style="border-radius:50%"><br>
+            <b>Jorge Soto</b><br>
+            <a href="https://github.com/Linich14">@Linich14</a>
+         </td>
+         <td align="center">
+            <img src="images/autores/dpbascur.png" width="150" style="border-radius:50%"><br>
+            <b>Daniel Peña</b><br>
+            <a href="https://github.com/DPBascur">@DPBascur</a>
+         </td>
+      </tr>
+   </table>
+</div>
 
 ---
 Proyecto académico. Uso educativo y de experimentación.
